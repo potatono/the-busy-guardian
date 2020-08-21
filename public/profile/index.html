@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>The Busy Guardian</title>
+
+    <!-- update the version number as needed -->
+    <script defer src="/__/firebase/7.16.1/firebase-app.js"></script>
+    <!-- include only the Firebase features as you need -->
+    <script defer src="/__/firebase/7.16.1/firebase-auth.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-firestore.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-messaging.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-storage.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-functions.js"></script>
+
+    <!-- initialize the SDK after all desired features are loaded -->
+    <script defer src="/__/firebase/init.js"></script>
+    
+    <script defer src="https://www.gstatic.com/firebasejs/ui/4.6.0/firebase-ui-auth.js"></script>
+    <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.6.0/firebase-ui-auth.css" />
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/main.css">
+
+    <script defer src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script defer src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+    <script defer src="https://unpkg.com/feather-icons"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/time-input-polyfill@1.0.9/core/helpers/supportsTime.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/time-input-polyfill@1.0.9/dist/time-input-polyfill.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.27.0/moment.min.js" integrity="sha512-rmZcZsyhe0/MAjquhTgiUcb4d9knaFc7b5xAfju483gbEXTkeJRUMIPk6s3ySZMYUHEcjKbjLjyddGWMrNEvZg==" crossorigin="anonymous"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.31/moment-timezone-with-data.js" integrity="sha512-ECoTMVFwwVtxjEBRjUMjviUd6hBjwDhBJI0+3W2YDs+ld5rHHUDr59T15gxwEPkGu5XLmkASUSvPgQe/Tpyodg==" crossorigin="anonymous"></script>
+
+
+    <script defer src="/js/schema.js?v=20"></script>
+    <script defer src="/js/model.js?v=20"></script>
+    <script defer src="/js/collection.js?v=20"></script>
+    <script defer src="/js/view.js?v=20"></script>
+    <script defer src="/js/user.js?v=20"></script>
+
+    <script defer src="/js/platform.js?v=20"></script>
+    <script defer src="/js/playwindow.js?v=20"></script>
+    <script defer src="/js/activity.js?v=20"></script>
+    <script defer src="/js/profile.js?v=20"></script>
+
+    <script defer src="/js/bungie.js?v=20"></script>
+ 
+  </head>
+
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <a class="navbar-brand" href="#">
+        <img src="/img/logo.svg" height="30" alt="[TbG]" loading="lazy">
+      </a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item active">
+            <a class="nav-link" href="#">Profile <span class="sr-only">(current)</span></a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Games</a>
+          </li>
+        </ul>
+        
+        <span id="username" class="navbar-text"></span>
+      </div>
+    </nav>
+
+    <div id="profile">
+      <div class="container-md">
+        <div class="alert alert-secondary">
+          Use the form below to set at least one platform, play window and activity.  Everything auto-saves.
+        </div>
+        <div id="profile-form"></div>
+      </div>
+    </div>
+
+    <script>
+      function startProfile() {
+          document.getElementById('username').innerText = User.user.email;
+          var profile = new Profile(User.uid)
+          var view = new FormView(profile)
+          document.getElementById('profile-form').appendChild(view.build())
+          profile.listen()
+          window.profile = profile
+
+          profile.addListener("bungieImportComplete", (complete) => { if (!complete) startImport() })
+      }
+
+      function progress(n) {
+        n = n || parseInt($('#import-progress').attr('aria-valuenow')) + 10
+
+        $('#import-progress').css('width', n + '%').attr('aria-valuenow', n)
+      }
+
+
+      function startImport() {
+        $('#import-loading').modal('show')
+
+        Bungie.importProfile(progress).then(() => {
+          progress(100)
+          profile.bungieImportComplete = true
+          window.setTimeout(() => $('#import-loading').modal('hide'), 250)
+        })
+      }
+
+      window.addEventListener("load", () => User.auth().then(_ => startProfile()))
+    </script>
+
+<div id="import-loading" class="modal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Importing data..</h5>
+      </div>
+      <div class="modal-body">
+        <div class="progress">
+          <div id="import-progress" class="progress-bar bg-danger progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+        // // The Firebase SDK is initialized and available here!
+        //
+        // firebase.auth().onAuthStateChanged(user => { });
+        // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
+        // firebase.messaging().requestPermission().then(() => { });
+        // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
+        //
+        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+
+        try {
+          let app = firebase.app();
+          let features = ['auth', 'database', 'messaging', 'storage'].filter(feature => typeof app[feature] === 'function');
+        } catch (e) {
+          console.error(e);
+        }
+      });
+    </script>
+  </body>
+</html>

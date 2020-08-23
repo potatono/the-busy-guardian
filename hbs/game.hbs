@@ -1,0 +1,19 @@
+<div id="game" class="game card mb-3">
+            <div class="row no-gutters">
+                <div class="col-md-2"  style="max-width: 100px; margin: auto 0 auto">
+                    <img src="/img/activity-{{activityType}}.png" class="card-img" alt="Raid" width="100">
+                </div>
+                <div class="col-md-10">
+                    <div class="card-body">
+                        <h5 class="card-title text-danger">{{activityName}}</h5>
+                        <p class="card-text">
+                            {{#each players}}
+                                {{username}}
+                            {{/each}}
+
+                        </p>
+                        <p class="card-text"><small class="text-muted">Last updated 3 mins ago</small></p>
+                    </div>
+                </div>
+            </div>
+        </div>

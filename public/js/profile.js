@@ -8,8 +8,10 @@
     var moment = window.moment || require("moment-timezone")
 
     class Profile extends Model {
-        constructor(id, data) {
-            super("profiles", id, data)
+        constructor(path, id, data) {
+            super("profiles", 
+                  path == "profiles" ? id : path, 
+                  path == "profiles" ? data : id)
 
             this.playWindows.addListener((change, playWindow) =>  {
                 if (change == "added") {
@@ -43,6 +45,8 @@
             schema.add("bungiePrimaryMembershipId", Number, { control: "none" }),
             schema.add("bungiePrimaryMembershipType", Number, { control: "none" })
             schema.add("bungieImportComplete", Boolean, { control: "none", default: false })
+            schema.add("games", Array, { control: "none", default: [] })
+            
             schema.setOption("useGlobalId", true)
 
             return schema
@@ -76,6 +80,11 @@
             this.playWindows.forEach(playWindow => result = result || playWindow.canPlay(targetMoment, duration))
 
             return result
+        }
+
+        getPlayWindow(targetMoment, duration) {
+            var result = this.playWindows.filter(playWindow => playWindow.canPlay(targetMoment, duration))
+            return result && result[0]
         }
     }
     

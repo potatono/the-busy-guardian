@@ -340,7 +340,8 @@
                 return;
             }
 
-            var view = new FormView(model)
+            //var view = new FormView(model)
+            var view = new this.view.constructor(model)
             var subelement = view.build("div")
 
             var self = this
@@ -475,6 +476,73 @@
         }
     }
 
+    class TemplateView {
+        constructor(obj, options) {
+
+            if (!(obj instanceof Collection))
+                throw new Error("TemplateView only supports Collections")
+
+            this.schema = obj.cls.getSchema()
+            this.collection = obj
+
+            this.options = this.schema.options.template || {}
+            if (options) 
+                Object.assign(this.options, options)
+
+            this.template = this.options.template && Handlebars.templates[this.options.template]
+            if (!this.template)
+                throw new Error("Invalid template supplied to TemplateView")
+        }
+
+        buildId(name, suffix) {
+            var result = this.data ? this.data.subpath(name) : name
+
+            if (suffix)
+                result = result + "/" + suffix
+            
+            return result
+        }
+
+        build() {
+            this.container = document.createElement("div")
+
+            this.collection.addListener((changeType, model) => {
+                switch(changeType) {
+                    case "added":
+                        this.add(model)
+                        break
+                    case "removed":
+                        this.remove(model)
+                        break
+                    case "modified":
+                        this.update(model)
+                        break
+                }
+            })
+
+            this.collection.forEach((model) => this.add(model))
+
+            return this.container
+        }
+
+        add(model) {
+            var div = document.createElement("div")
+            div.id = model.absolutePath
+            div.innerHTML= this.template(model, { allowProtoPropertiesByDefault: true })
+            this.container.appendChild(div)
+        }
+
+        remove(model) {
+            var div = document.getElementById(model.absolutePath)
+            this.container.removeChild(div)
+        }
+
+        update(model) {
+            var div = document.getElementById(model.absolutePath)
+            div.innerHTML = this.template(model, { allowProtoPropertiesByDefault: true })
+        }
+    }
+
     /**
      * A place to register element bindings.
      */
@@ -586,9 +654,11 @@
 
     if (typeof(exports) != "undefined") {
         exports.FormView = FormView
+        exports.TemplateView = FormView
     }
     else if (typeof(window) != "undefined") {
         window.FormView = FormView
+        window.TemplateView = TemplateView
     }
 
 })()

@@ -2,7 +2,10 @@
     var Schema = window.Schema || require("schema").Schema
     var Model = window.Model || require("model").Model
     var Collection = window.Collection || require("collection").Collection
+    var Activity = window.Activity || require('activity').Activity
+    var Profile = window.Profile || require('profile').Profile
     var moment = window.moment || require("moment-timezone")
+    var firebase = window.firebase || require("firebase-admin")
 
     class Player extends Model {
         static defineSchema() {
@@ -13,6 +16,8 @@
             schema.add("startTime", moment, { timezone: "America/Los_Angeles", format: "hh:mma" })
             schema.add("endTime", moment, { timezone: "America/Los_Angeles", format: "hh:mma" })
             schema.add("isAlternate", Boolean)
+            schema.add("confirmed", Boolean)
+            schema.add("uid", String)
 
             return schema
         }
@@ -21,6 +26,11 @@
     class Players extends Collection {
         static defineClass() {
             return Player
+        }
+
+        getByUid(uid) {
+            var result = this.filter(player => player.uid == uid)
+            return result && result[0]
         }
     }
 
@@ -37,6 +47,8 @@
             schema.add("startTime", moment, { timezone: "America/Los_Angeles", format: "hh:mma" })
             schema.add("endTime", moment, { timezone: "America/Los_Angeles", format: "hh:mma" })
             schema.add("experience", Number, { default: 0 })
+
+            schema.setOption("useGlobalId", true)
 
             return schema
         }
@@ -64,6 +76,64 @@
             return this.getScoreWith(this.experience, this.duration, this.size)
         }
 
+        get activityType() {
+            return this.activity && this.activity.split(':')[0]
+        }
+
+        get displayStartTime() {
+            var tz = moment.tz.guess()
+            return this.startTime.clone().tz(tz).format("LT")
+        }
+
+        get displayEndTime() {
+            var tz = moment.tz.guess()
+            return this.endTime.clone().tz(tz).format("LT")
+        }
+
+        get displayDate() {
+            var tz = moment.tz.guess()
+            return moment.tz(this.date.toDate(), "America/Los_Angeles").tz(tz).format("ddd MM/DD")
+        }
+
+        get displayTimeZone() {
+            return moment.tz.guess()
+        }
+
+        get displayUpdatedOn() {
+            return moment(this.updatedOn.toDate()).fromNow()
+        }
+
+        get isConfirmed() {
+            var user = firebase.auth().currentUser
+            
+            if (!user)
+                return false
+            
+            var player = this.players.getByUid(user.uid)
+            return player && player.confirmed
+        }
+
+        getActivityLookup() {
+            if (!this.activityLookup) {
+                this.activityLookup = {}
+                var field = Activity.getSchema().fields.filter(field => field.name == "activity")[0]
+                var groups = field.options.values
+                groups.forEach((group) => {
+                    group.values.forEach((item) => {
+                        var key = group.value + ":" + item.value
+                        var label = item.label
+                        this.activityLookup[key] = label
+                    })
+                })
+            }
+
+            return this.activityLookup
+        }
+
+        get activityName() {
+            return this.getActivityLookup()[this.activity]
+        }
+
         getScoreWith(experience, duration, size) {
             var idealExp = this.isRaid ? 32 : 15
             var idealTime = this.isRaid ? 3 : 1.5
@@ -89,11 +159,24 @@
         }
 
         addPlayerProfile(profile) {
-            this.addPlayer(
+            // Hang on to the profile so we can save it later
+            this.profiles = this.profiles || []
+            this.profiles.push(profile)
+
+            // Add this game the profile
+            profile.games = (profile.games || []).concat(this.id)
+
+            // Add this player to the game
+            var player = this.addPlayer(
                 profile.getPlatform(this.platform),
                 profile.getActivity(this.activity),
-                profile.playWindows.get(0)  // TODO FIXME (This won't work for production)
+                profile.getPlayWindow(this.startTime, this.duration)
             )
+
+            // Record uid so we can back games out
+            player.uid = profile.id
+
+            return player
         }
 
         // TODO FIXME Update this to use profile.. Anonymous users will use anonymous auth.
@@ -102,7 +185,7 @@
             var startTime = playWindow.startMoment.clone().tz("America/Los_Angeles")
             var endTime = playWindow.endMoment.clone().tz("America/Los_Angeles")
 
-            // GROSS
+            // GROSS - DO WE STILL NEED THIS?  Looks like it's adjusts for off by one day.
             if (this.startTime && (startTime - this.startTime) < -12 * 60 * 60 * 1000)
                 startTime.add(1, "day")
             
@@ -135,6 +218,8 @@
             this.startTime = newStartTime
             this.endTime = newEndTime
             this.experience = newExperience
+
+            return player
         }
 
         removePlayer(username) {
@@ -154,6 +239,21 @@
             this.endTime = endTime
         }
 
+        confirm(profile) {
+            var player = this.players.getByUid(profile.id) ||
+                this.addPlayerProfile(profile)
+
+            player.confirmed = true
+        }
+
+        leave(profile) {
+            var player = this.players.getByUid(profile.id)
+
+            if (player) {
+                this.removePlayer(player.username)
+            }
+        }
+
         log() {
             console.log("Game", this.activity)
             console.log("Platform", this.platform)
@@ -164,6 +264,8 @@
                 player.startTime.format("hh:mma"), player.endTime.format("hh:mma")
             ))
         }
+
+
     }
 
     class Games extends Collection {
@@ -292,6 +394,7 @@
 
             for (var i=0; i<gameCount; i++) {
                 var game = this.games.add(null, { force: true })
+                game.date = this.targetMoment.toDate()
                 game.startTime = this.targetMoment.clone()
                 game.endTime = this.targetMoment.clone().add(this.duration, 'hours')
                 game.activity = this.activityName
@@ -315,30 +418,33 @@
             this.activityName = activityName
             this.targetMoment = moment.tz('America/Los_Angeles').startOf('day').add(9, 'hours')
             this.duration = activityName.startsWith('raid:') ? 2 : 1
+            var playerCount = activityName.startsWith('raid:') ? 6 : 3
 
             this.makePool()
                 .filterPoolByPlaced()
                 .filterPoolByPlatform()
                 .filterPoolByActivity()
             
-            console.log(this.playerPool.length, "players for", activityName, "on", platformName)
-
             if (this.playerPool.length == 0)
                 return this.games
-                    
+
+            console.log(this.playerPool.length, "players for", activityName, "on", platformName)
+
             for (var half=0; half<48; half++) {
                 this.pushPool()
                     .filterPoolByPlaced()
                     .filterPoolByPlayWindow()
                     .shufflePool()
                     .makeExperiencePools()
-            
-                console.log(this.playerPool.length, "players at", this.targetMoment.format("hh:mma"))
-                this.playerPool.forEach(player => console.log(player.username))
 
-                this.buildGames()
+                if (this.playerPool.length >= playerCount) {
+                    console.log(this.playerPool.length, "players at", this.targetMoment.format("hh:mma"))
+                    
+                    this.buildGames()
+                }
 
                 this.popPool()
+
                 this.targetMoment.add(30, "minutes")
             }
 

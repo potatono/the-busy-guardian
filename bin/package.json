@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "firebase-admin": "^9.0.0",
+    "handlebars": "^4.7.6",
     "moment": "^2.27.0",
     "moment-timezone": "^0.5.31"
   }

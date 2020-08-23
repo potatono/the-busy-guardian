@@ -43,7 +43,7 @@ body {
 
 }
 
-.btn {
+.btn-hollow {
     background-color: black;
     border-color: #fe2400;
     color: #fe2400;
@@ -111,7 +111,7 @@ body {
     text-align: justify;
 }
 
-#profile {
+#profile, #games {
     margin-top: 20px;
 }
 

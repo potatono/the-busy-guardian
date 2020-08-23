@@ -2,9 +2,9 @@
 
 if (typeof(window) == "undefined") global.window = {}
 
-var TestUser = require("test").TestUser
 var admin = require('firebase-admin');
 var Model = require('model').Model
+var Profiles = require('profile').Profiles
 var Activity = require('activity').Activity
 var Platform = require('platform').Platform
 var GameBuilder = require('game').GameBuilder
@@ -16,12 +16,9 @@ admin.initializeApp({
 
 Model.autoCommit = false
 
-function makeTestUsers(result, n) {
-    return TestUser.create().then(profile => {
-        result.push(profile)
-
-        return n > 0 ? makeTestUsers(result, n - 1) : result
-    })
+function getAllPlayers() {
+    var profiles = new Profiles()
+    return profiles.loadAll()
 }
 
 function getAllPlatforms() {
@@ -40,23 +37,37 @@ function getAllActivities() {
     return result
 }
 
-var playerCount = 100000
+var commit = process.argv[2] == "commit";
+
 var time = (new Date()).getTime()
 var platforms = getAllPlatforms()
 var activities = getAllActivities()
 
-console.log("Making test users...")
+console.log("Loading players...")
 
-makeTestUsers([], playerCount).then(players => {
-
+getAllPlayers().then(players => {
     var builder = new GameBuilder(players)
 
     platforms.forEach(platform => { activities.forEach(activity => {
         var games = builder.build(platform, activity)
-        games.forEach(game => game.log())
+
+        games.forEach(game => {
+            game.log()
+
+            if (commit) {
+                game.save()
+
+                if (game.profiles)
+                    game.profiles.forEach(profile => profile.save())
+            }
+        })
     }) })
 
     var endTime = (new Date()).getTime()
 
-    console.log("Placed", playerCount, "players in", (endTime - time)/1000, "seconds.")
+    console.log("Placed", players.length, "players in", (endTime - time)/1000, "seconds.")
+    
+    if (!commit) {
+        console.log("Did not save games. Use `",process.argv[1]," commit` to save.")
+    }
 })

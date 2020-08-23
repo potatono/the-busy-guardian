@@ -26,8 +26,10 @@
         var startMinute = Math.random() > 0.5 ? 30 : 0
         playWindow.startTime = fixture.startTime || (('0' + startHour).slice(-2) + ":" + ('0' + startMinute).slice(-2))
     
-    
-        var endHour = startHour + Math.floor(Math.random() * 3) + 1
+        // Reset startHour in case we used a fixture.
+        startHour = parseInt(playWindow.startTime.split(':')[0])
+
+        var endHour = startHour + Math.round(Math.random() * 3) + 2
         var endMinute = Math.random() > 0.5 ? 30 : 0
         if (endHour > 23) endHour -= 24
         playWindow.endTime = fixture.endTime || (('0' + endHour).slice(-2) + ":" + ('0' + endMinute).slice(-2))
@@ -56,7 +58,7 @@
     class TestUser {
         static create(save, fixture) {
             fixture = fixture || {}
-
+            
             var profile = new Profile()
             profile.autoCommit = false
 

@@ -10,7 +10,11 @@ This tool relies on Firebase (Firestore, Auth, Functions, Hosting) and the Bungi
 
 You will need a Firebase account with Functions access and a Bungie.net Application API Key, OAuth Client Id and OAuth Client Secret.
 
+#### Set environment vars
+
 Edit `bin/source-setup.sh` and change `GOOGLE_APPLICATION_CREDENTIALS` to point at your Firebase credentials JSON.
+
+#### Set function configs
 
 Set your bungie data via function config variables.
 
@@ -21,7 +25,20 @@ $ firebase functions:config:set \
 		bungie.api.key="API_KEY"
 ```
 
+#### Set up service account
+
 Set up your Firebase service account to have the token creator role. See this [Stack Overflow question](https://stackoverflow.com/questions/63385595/caller-does-not-have-permission-trying-to-create-custom-token-with-firebase-ad) for details.
+
+#### Install dependencies
+
+```
+$ cd functions
+$ npm install
+$ cd ../bin
+$ npm install
+```
+
+#### Start it up
 
 ```
 $ source bin/source-setup.sh

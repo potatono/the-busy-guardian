@@ -1,5 +1,6 @@
 (function() {
     var firebase = window.firebase || require("firebase-admin")
+    var Progress = window.Progress || require("progress").Progress
 
     /**
      * Represents a collection of models
@@ -52,6 +53,10 @@
             return this.ids.length
         }
 
+        slice(start, end) {
+            return this.ids.slice(start, end).map(id => this.data[id])
+        }
+
         get(idx) {
             return this.data[this.ids[idx]]
         }
@@ -64,6 +69,19 @@
             for (let id of this.ids) {
                 callback(this.data[id])
             }
+        }
+
+        map(callback) {
+            return this.ids.map(id => callback(this.data[id]))
+        }
+
+        filter(callback) {
+            return this.ids.filter(id => callback(this.data[id])).map(id => this.data[id])
+        }
+
+        *[Symbol.iterator]() {
+            for (let id of this.ids)
+                yield this.data[id]
         }
 
         get schema() {
@@ -98,6 +116,7 @@
                     this.ids.splice(idx, 1) 
             }
             else if (change.type == "added") {
+                Progress.report()
                 model = this.instantiate(change.doc.id, change.doc.data())
                 this.data[change.doc.id] = model
                 this.ids.push(change.doc.id)
@@ -116,13 +135,16 @@
             return firebase.firestore().collection(this.path)
         }
 
+        colByIds(ids) {
+            return this.col().where(firebase.firestore.FieldPath.documentId(), 'in', ids)
+        }
+
         /**
          * Loads the collection from Firestore
+         * @param {*} col Override collection reference so we can filter by where
          */
         load(col) {
-            // TODO remove col param, I don't think it's used.
             var self = this
-
             col = col || this.col()
             const promise = col.get()
 
@@ -136,17 +158,33 @@
                     })
                 })
                 self.isLoaded = true
+
+                return self
             })
             .catch(function(error) { console.log(error)} )
 
             return promise
         }
 
+        loadAll(col) {
+            return this.load(col).then(() => { 
+                var promises = this.map(model => model.loadCollections()) 
+        
+                return Promise.all(promises).then(() => this)
+            })            
+        }
+
+        deleteAll(col) {
+            return this.loadAll(col).then(() => {
+                return Promise.all(this.map((model) => model.delete()))
+            })
+        }
+
         /**
          * Listens to the collection on Firestore
          */
         listen(col) {
-            // TODO remove col param, I don't think it's used.
+            
             var self = this
             col = col || this.col()
             col.onSnapshot(function(snap) {

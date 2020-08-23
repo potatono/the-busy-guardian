@@ -1,7 +1,10 @@
+
 (function() {
     var Schema = window.Schema || require("schema").Schema
+    var Progress = window.Progress || require("progress").Progress
     var firebase = window.firebase || require("firebase-admin")
     var moment = window.moment || require("moment-timezone")
+    
 
     // Sets are used for groups of checkboxes, we extend them with
     // some utilities to make the integration easier.
@@ -99,7 +102,7 @@
             if (this.getSchema().options.useGlobalId) {
                 var time = Math.floor(((new Date()).getTime() - Date.parse("2020-01-01")) / 100)
                 var user = firebase.auth().currentUser
-                var uid = (user && user.uid) || ("anon" + Math.floor(Math.random()*900000+100000).toString(36))
+                var uid = (user && user.uid) || ("A" + Math.floor(Math.random()*900000+100000).toString(36))
                 var rand = Math.floor(Math.random()*900000+100000)
 
                 var uuid = [ time.toString(36), uid, rand.toString(36) ].join('-')
@@ -321,7 +324,7 @@
          * Saves this model
          */
         save() {
-            console.debug("Save", this.path, "isNew", this.isNew)
+            //console.debug("Save", this.path, "isNew", this.isNew)
             if (!this.path)
                 throw new Error("No path set")
 
@@ -355,7 +358,7 @@
         deserialize(field, data) {
             var value = data[field.name]
 
-            if (field.cls == "moment") {
+            if (field.cls == moment) {
                 var timezone = field.options.timezone || (field.options.timezoneField && data[field.options.timezoneField])
                 var format = field.options.format
 
@@ -380,13 +383,26 @@
                 var data = doc.data()
                 
                 this.isLoading = true
+
                 for (let field of this.schema.fields) {
                     if (!field.isCollection)
                         this[field.name] = this.deserialize(field, data)
                 }
+                
+                if (data.createdOn) {
+                    this.createdOn = data.createdOn
+                }
+
+                if (data.updatedOn) {
+                    this.updatedOn = data.updatedOn
+                }
+
                 delete this.isLoading
 
                 this.isLoaded = true
+
+                // if ('*' in this.listeners)
+                //     this.listeners['*'](this, this)
             }
         }
 
@@ -418,7 +434,8 @@
         
             const promise = this.doc().get()
                 
-            promise.then(function(doc) { 
+            promise.then(function(doc) {
+                    Progress.report()
                     self.setFromDoc(doc) 
                 })
                 .catch(function(err) { console.log("Error getting document:", err) })
@@ -472,12 +489,15 @@
         /** Deletes models nested in collections within this model */
         deleteCollections() {
             var schema = this.getSchema()
+            var promises = []
 
             for (let field of schema.fields) {
                 if (field.isCollection && this.data[field.name]) {
-                    this.data[field.name].forEach(model => model.delete())
+                    this.data[field.name].forEach(model => promises.push(model.delete()))
                 }   
-            } 
+            }
+
+            return Promise.all(promises)
         }
 
         /**
@@ -485,9 +505,8 @@
          */
         delete() {
             if (this.autoCommit) {
-                this.deleteCollections()
                 console.log("Deleting", this.absolutePath)
-                this.doc().delete()
+                return Promise.all([ this.deleteCollections(), this.doc().delete() ])
             }
         }
 

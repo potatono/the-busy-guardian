@@ -43,6 +43,11 @@
         get isCollection() {
             return this.cls.__proto__.name == "Collection"
         }
+
+        // // Used by TemplateViewControl
+        // static model(options) {
+        //     return new Field('*', Model, options)
+        // }
     }
 
     if (typeof(exports) != "undefined") {

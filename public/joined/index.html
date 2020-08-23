@@ -39,6 +39,7 @@
     <script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
 
 
+
     <script defer src="/js/schema.js?v=20"></script>
     <script defer src="/js/progress.js?v=20"></script>
     <script defer src="/js/model.js?v=20"></script>
@@ -50,9 +51,8 @@
     <script defer src="/js/playwindow.js?v=20"></script>
     <script defer src="/js/activity.js?v=20"></script>
     <script defer src="/js/profile.js?v=20"></script>
+    <script defer src="/js/game.js?v=20"></script>
 
-    <script defer src="/js/bungie.js?v=20"></script>
- 
   </head>
 
   <body>
@@ -66,10 +66,10 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav mr-auto">
           <li class="nav-item">
-            <a class="nav-link active" href="/profile">Profile <span class="sr-only">(current)</span></a>
+            <a class="nav-link" href="/profile">Profile</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="/joined">My Games</a>
+            <a class="nav-link active" href="/joined">My Games <span class="sr-only">(current)</span></a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="/games">All Games</a>
@@ -80,63 +80,144 @@
       </div>
     </nav>
 
-
-    <div id="profile">
-      <div class="container-md">
-        <div class="alert alert-secondary">
-          Use the form below to set at least one platform, play window and activity.  Everything auto-saves.
-        </div>
-        <div id="profile-form"></div>
+    <div id="games" class="container-md"></div>
+    <div id="nogames" class="container-md d-none">
+      <div class="alert alert-secondary">
+        You haven't joined any games yet.  Look for open <a href="/games">games</a> to join, or update your profile to 
+        try to get more matches.  Check the <a href="/faq">FAQ</a> for more information.
       </div>
     </div>
 
-    <script>
-      function startProfile() {
-          var profile = new Profile(User.uid)
-          var view = new FormView(profile)
-          document.getElementById('profile-form').appendChild(view.build())
-          profile.listen()
-          window.profile = profile
-
-          profile.addListener("bungieImportComplete", (complete) => { if (!complete) startImport() })
-      }
-
-      function progress(n) {
-        n = n || parseInt($('#import-progress').attr('aria-valuenow')) + 10
-
-        $('#import-progress').css('width', n + '%').attr('aria-valuenow', n)
-      }
+    <script id="game.hbs" type="text/x-handlebars-template">
+      <div id="game-{{id}}" class="game card mb-3">
+          <div class="row no-gutters">
+              <div class="col-md-2"  style="max-width: 100px; margin: auto 0 auto">
+                  <img src="/img/activity-{{activityType}}.png" class="card-img" alt="Raid" width="100">
+              </div>
+              <div class="col-md-10">
+                  <div class="card-body">
+                      <h5 class="card-title text-danger">{{activityName}}</h5>
 
 
-      function startImport() {
-        $('#import-loading').modal('show')
+                      <div class="row">
+                          <div class="col-md-2">Platform</div>
+                          <div class="col-md-10">
+                              <img src="/img/platform-{{platform}}@32.png">
+                          </div>
+                      </div>
+                      
+                      <div class="row">
+                          <div class="col-md-2">Date</div>
+                          <div class="col-md-10">
+                              {{displayDate}} @ {{displayStartTime}} - {{displayEndTime}}
+                          </div>
+                      </div>
 
-        Bungie.importProfile(progress).then(() => {
-          progress(100)
-          profile.bungieImportComplete = true
-          window.setTimeout(() => $('#import-loading').modal('hide'), 250)
+
+                      <div class="row">
+                          <div class="col-md-2">Players</div>
+                          <div class="col-md-10">
+                              <div class="row">
+                                  {{#each players}}
+                                      <div class="col-md-4">
+                                      {{username}} <small class="text-muted" style="margin-right: 10px">({{experience}})</small>
+                                      </div>
+                                  {{/each}}
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="row" style="margin-top: 20px; margin-bottom: 20px">
+                        <div class="col-md-2"></div>
+                        <div class="col-md-10">
+
+                          {{#if isConfirmed}}
+                          <button class="btn btn-success" disabled>Confirmed</button>
+                          {{else}}
+                          <button class="btn btn-outline-success" onclick="confirmGame('{{id}}', this)">Confirm</button>
+                          {{/if}}
+                          <button class="btn btn-outline-danger" onclick="leaveGame('{{id}}', this)">Leave</button>
+                        </div>
+                      </div>
+
+                      <p class="card-text"><small class="text-muted">Last updated {{displayUpdatedOn}}</small></p>
+
+                  </div>
+              </div>
+          </div>
+      </div>
+  </script>
+
+<script>
+  window.global = window
+  Handlebars.templates = Handlebars.templates || {}
+  Handlebars.templates['game.hbs'] = Handlebars.compile(document.getElementById('game.hbs').innerHTML)
+
+  function startGames() {
+    var games = new Games()
+    
+    Progress.addListener(value => $('#progress').css('width', value+'%').attr('aria-valuenow',value))
+    $('#loading').modal('show')
+
+    var profile = new Profile(User.uid)
+
+    profile.load().then(() => {
+      var gameIds = profile.games || []
+
+      if (gameIds.length > 0) {
+        Progress.step = 45 / gameIds.length
+
+        var col = games.colByIds(gameIds)
+
+        games.loadAll(col).then(() => {
+          Progress.report(100)
+        
+          var view = new TemplateView(games, { template: 'game.hbs' })
+          document.getElementById('games').appendChild(view.build())
+
+          window.setTimeout(()=>$('#loading').modal('hide'), 250)
         })
       }
+      else {
+        $('#nogames').removeClass('d-none')
+        Progress.report(100)
+        window.setTimeout(()=>$('#loading').modal('hide'), 250)
+      }
+    })
 
-      window.addEventListener("load", () => User.auth().then(_ => startProfile()))
-    </script>
+    window.profile = profile
+    window.games = games
+  }
 
-<div id="import-loading" class="modal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Importing data..</h5>
-      </div>
-      <div class="modal-body">
-        <div class="progress">
-          <div id="import-progress" class="progress-bar bg-danger progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+  function confirmGame(gid, element) {
+    var game = games.getById(gid)
+    game.confirm(profile)
+    element.innerText = "Confirmed"
+    element.disabled = true
+  }
+
+  function leaveGame(gid, element) {
+    var game = games.getById(gid)
+    game.leave(profile)
+  }
+
+  window.addEventListener("load", () => User.auth().then(_ => startGames()))
+</script>
+
+<div id="loading" class="modal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Loading games..</h5>
+        </div>
+        <div class="modal-body">
+          <div class="progress">
+            <div id="progress" class="progress-bar bg-danger progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
-
-
 
 
     <script>

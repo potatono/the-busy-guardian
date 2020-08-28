@@ -1,7 +1,7 @@
 (function() {
-    var Schema = window.Schema || require("schema").Schema
-    var Model = window.Model || require("model").Model
-    var Collection = window.Collection || require("collection").Collection
+    var Schema = require("./schema").Schema
+    var Model = require("./model").Model
+    var Collection = require("./collection").Collection
 
     class Activity extends Model {
         static defineSchema() {
@@ -13,7 +13,7 @@
                 colSizes: [ 4 ],
                 placeholders: [ "(Category)", "(Activity)" ],
                 values: [
-                    { value: "raid", label: "Raid", values: [
+                    { value: "raid", label: "Raid", teamSize: 6, values: [
                         { value: "any", label: "Any" },
                         { value: "leviathan", label: "Leviathan" },
                         { value: "eaterOfWorlds", label: "Eater of Worlds" },
@@ -23,24 +23,23 @@
                         { value: "crownOfSorrow", label: "Crown Of Sorrow" },
                         { value: "gardenOfSalvation", label: "Garden of Salvation" }
                     ]},
-                    { value: "dungeon", label: "Dungeon", values: [
+                    { value: "dungeon", label: "Dungeon", teamSize: 3, values: [
                         { value: "any", label: "Any" },
                         { value: "theShatteredThrone", label: "The Shattered Throne" },
                         { value: "pitOfHeresy", label: "Pit of Heresy" },
                         { value: "prophecy", label: "Prophecy" }
                     ]},
-                    { value: "crucible", label: "Crucible", values: [
+                    { value: "crucible", label: "Crucible", teamSize: 6, values: [
                         { value: "any", label: "Any" },
                         { value: "competitive", label: "Competitive" },
                         { value: "ironBanner", label: "Iron Banner" },
                         { value: "trialsOfOsiris", label: "Trials of Osiris" },
 
                     ]},
-                    { value: "strike", label: "Strike", values: [
-                        { value: "any", label: "Any" },
+                    { value: "strike", label: "Strike", teamSize: 3, values: [
                         { value: "nightfall", label: "Nightfall" }
                     ]},
-                    { value: "mission", label: "Mission", values: [
+                    { value: "story", label: "Story", teamSize: 3, values: [
                         { value: "theWhisper", label: "The Whisper" },
                         { value: "zeroHour", label: "Zero Hour" }
                     ]}
@@ -97,7 +96,7 @@
         exports.Activity = Activity
         exports.Activities = Activities
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.Activity = Activity
         window.Activities = Activities
     }

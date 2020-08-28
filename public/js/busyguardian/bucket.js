@@ -1,5 +1,5 @@
 (function() {
-    var Game = window.Game || require("game").Game
+    var Game = require("./game").Game
 
     class Buckets {
         constructor() {
@@ -66,7 +66,7 @@
     if (typeof(exports) != "undefined") {
         exports.Buckets = Buckets
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.Buckets = Buckets
     }
 })()

@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-global.window = {}
 
 var admin = require('firebase-admin');
-var Profile = require('profile').Profile
-var Games = require('game').Games
+var Profile = require('busyguardian').Profile
+var Games = require('busyguardian').Games
 var moment = require('moment-timezone')
 
 admin.initializeApp({

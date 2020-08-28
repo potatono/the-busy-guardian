@@ -14,10 +14,13 @@
   "dependencies": {
     "axios": "^0.19.2",
     "axios-debug-log": "^0.8.0",
+    "busyguardian": "file:busyguardian",
     "cookie-parser": "^1.4.5",
-    "firebase-admin": "^9.1.0",
+    "firebase-admin": "^9.1.1",
     "firebase-functions": "^3.9.1",
     "form-data": "^3.0.0",
+    "moment": "^2.27.0",
+    "moment-timezone": "^0.5.31",
     "querystring": "^0.2.0"
   },
   "devDependencies": {

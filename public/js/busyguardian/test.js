@@ -1,6 +1,6 @@
 (function() {
-    var Profile = window.Profile || require('profile').Profile
-    var moment = window.moment || require('moment-timezone')
+    var Profile = require('./profile').Profile
+    var moment = require('moment-timezone').moment || require("moment-timezone")
 
     function randomMember(array) {
         var idx = Math.floor(Math.random() * array.length)
@@ -90,7 +90,7 @@
     if (typeof(exports) != "undefined") {
         exports.TestUser = TestUser
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.TestUser = TestUser
     }
 })()

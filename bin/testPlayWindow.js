@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 
-if (typeof(window) == "undefined") global.window = {}
-
 const assert = require('assert')
 const { exit } = require('process')
 const util = require('util')
 
 var admin = require('firebase-admin')
-var Model = require('model').Model
-var PlayWindow = require('playwindow').PlayWindow
+var Model = require('busyguardian').Model
+var PlayWindow = require('busyguardian').PlayWindow
 var moment = require("moment-timezone")
 
 
@@ -78,6 +76,21 @@ function assertCantPlay(time, duration, startTime, endTime, timezone, dayOffset=
     assertOk(!value, msg)
 }
 
+function assertCanPlayMoment(targetMoment, day, duration, startTime, endTime, timezone) {
+    // When we make games we walk half hours from reset and will cross the midnight
+    // boundry, so any hours before 9 should be next day
+    if (targetMoment.hours() < 9)
+        targetMoment.add(1, 'day')
+
+    var targetDay = targetMoment.format("ddd")
+
+    var value = testCanPlay(targetMoment, duration, startTime, endTime, timezone, day)
+    var time = targetMoment.format("MM/DD hh:mma")
+    var msg = util.format("%s+%d (PST) %s in %s-%s %s (%s)", time, duration, targetDay, startTime, endTime, day, timezone)
+
+    assertOk(value, msg)
+}
+
 assertCanPlay("5:30pm", 2, "8:30pm", "12am", "America/New_York")
 assertCanPlay("6:00pm", 2, "8:30pm", "12am", "America/New_York")
 assertCanPlay("7:00pm", 2, "8:30pm", "12am", "America/New_York")
@@ -133,4 +146,6 @@ assertCanPlay("4:00am", 2, "12:00am", "2:00am", "Pacific/Tongatapu", 2)
 assertCanPlay("8:00am", 2, "4:00am", "6:00am", "Pacific/Tongatapu", 2)
 assertCanPlay("9:00am", 2, "5:00am", "7:00am", "Pacific/Tongatapu", 1)
 
-
+// Planning accross daylight savings boundries will have off by one issues
+var moment = moment.tz("2020-11-01 9:00pm", "YYYY-MM-DD hh:mma", false, "America/New_York").tz("America/Los_Angeles")
+assertCanPlayMoment(moment, "Sun", 2, "8:30pm", "12:00am", "America/New_York")

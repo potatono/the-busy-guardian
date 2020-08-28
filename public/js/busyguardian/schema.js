@@ -54,7 +54,7 @@
         exports.Schema = Schema
         exports.Field = Field
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.Schema = Schema
         window.Field = Field
     }

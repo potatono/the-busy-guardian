@@ -1,6 +1,6 @@
 (function() {
-    var firebase = window.firebase || require("firebase-admin")
-    var Progress = window.Progress || require("progress").Progress
+    var firebase = require("firebase-admin").firebase || require("firebase-admin")
+    var Progress = require("./progress").Progress
 
     /**
      * Represents a collection of models
@@ -174,6 +174,18 @@
             })            
         }
 
+        loadByIds(ids) {
+            var promises = ids.map(id => {
+                var model = this.instantiate(id)
+                this.ids.push(id)
+                this.data[id] = model
+
+                return model.load()
+            })
+
+            return Promise.all(promises)
+        }
+
         deleteAll(col) {
             return this.loadAll(col).then(() => {
                 return Promise.all(this.map((model) => model.delete()))
@@ -246,7 +258,7 @@
     if (typeof(exports) != "undefined") {
         exports.Collection = Collection
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.Collection = Collection
     }
 })()

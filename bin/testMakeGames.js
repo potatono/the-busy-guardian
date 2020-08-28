@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 
-if (typeof(window) == "undefined") global.window = {}
-
 var admin = require('firebase-admin');
-var TestUser = require('test').TestUser
-var Model = require('model').Model
-var Activity = require('activity').Activity
-var Platform = require('platform').Platform
-var GameBuilder = require('game').GameBuilder
+var TestUser = require('busyguardian').TestUser
+var Model = require('busyguardian').Model
+var Activity = require('busyguardian').Activity
+var Platform = require('busyguardian').Platform
+var GameBuilder = require('busyguardian').GameBuilder
 
 admin.initializeApp({
     credential: admin.credential.applicationDefault(),

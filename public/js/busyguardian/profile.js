@@ -1,11 +1,11 @@
 (function() {
-    var Schema = window.Schema || require("schema").Schema
-    var Model = window.Model || require("model").Model
-    var Collection = window.Collection || require("collection").Collection
-    var Platforms = window.Platforms || require("./platform").Platforms
-    var PlayWindows = window.PlayWindows || require("./playwindow").PlayWindows
-    var Activities = window.Activities || require("./activity").Activities
-    var moment = window.moment || require("moment-timezone")
+    var Schema = require("./schema").Schema
+    var Model = require("./model").Model
+    var Collection = require("./collection").Collection
+    var Platforms = require("./platform").Platforms
+    var PlayWindows = require("./playwindow").PlayWindows
+    var Activities = require("./activity").Activities
+    var moment = require("moment-timezone").moment || require("moment-timezone")
 
     class Profile extends Model {
         constructor(path, id, data) {
@@ -23,21 +23,30 @@
 
         static defineSchema() {
             var schema = new Schema()
-            schema.add("username", String, { help: "Choose a name to display to other players on TbG", unique:true })
-            schema.add("email", String, { 
-                help: "Email address to send notifications to.  We do not share your personal information. (OPTIONAL)" })
-            schema.add("discordUsername", String, {
-                help: "Your Discord username, including tag.  You'll need to join https://discord.gg/Z88Dv6W for Discord notifications. (OPTIONAL)" })
+            schema.add("username", String, { help: "Choose a name to display to other players on TbG" })
+            schema.add("email", String, { label: "Email (Optional)",
+                help: "Email address to send notifications to.  We do not share your personal information."
+            })
+            schema.add("discordId", String, { label: "Discord Snowflake (See help, Optional)",
+                help: "<p>Your 16 to 20 digit numeric " +
+                      "\"<a href=\"https://discord.com/developers/docs/reference#snowflakes\" target=\"_blank\">snowflake</a>\" " + 
+                      "user id.</p> <p>You can say <code>\\@YOUR_USERNAME</code> on Discord to get your id, or " +
+                      "click <a href=\"/discord\">this link</a>.</p><p>You'll need to join " +
+                      "<a href=\"https://discord.gg/Z88Dv6W\" target=\"_blank\">https://discord.gg/Z88Dv6W</a> for Discord notifications.</p>"
+            })
             schema.add("timezone", String, { control: "select", values: moment.tz.names(), default: moment.tz.guess(), label: "Time Zone",
-                help: "What timezone you will be playing in.  We've guessed, but make sure it looks right to you." })
+                help: "What timezone you will be playing in.  We've guessed, but make sure it looks right to you."
+            })
             schema.add("notifyVia", String, { control: "select", values: ["email", "discord"], default: "email", label:"Send Notifications To",
-                help: "How you would like to be notified when added to a fireteam.  You'll need to join https://discord.gg/Z88Dv6W for Discord notifications." })
-
+                help: "How you would like to be notified when added to a fireteam.  You'll need to join " +
+                      "<a href=\"https://discord.gg/Z88Dv6W\" target=\"_blank\">https://discord.gg/Z88Dv6W</a> for Discord notifications."
+            })
             schema.add("playWindows", PlayWindows, {
                 help: "The days and times you are typically available to play."
             })
             schema.add("platforms", Platforms, {
-                help: "The gaming platform(s) you want to play on."})
+                help: "The gaming platform(s) you want to play on."
+            })
             schema.add("activities", Activities, {
                 help: "The activities you're interested in playing, and your experience playing them."
             })
@@ -102,7 +111,7 @@
         exports.Profile = Profile
         exports.Profiles = Profiles
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.Profile = Profile
         window.Profiles = Profiles
     }

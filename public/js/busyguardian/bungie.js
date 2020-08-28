@@ -1,7 +1,7 @@
 
 class Bungie {
-    static importProfile(progress) {
-        this.setup(progress)
+    static importProfile() {
+        this.setup()
 
         return Promise.all([
             this.importMemberships(),
@@ -9,19 +9,18 @@ class Bungie {
         ])
     }
 
-    static setup(progress) {
+    static setup() {
         if (/localhost/.test(window.location.href)) {
             firebase.functions().useFunctionsEmulator('http://localhost:5001')
         }
         this.api = firebase.functions().httpsCallable('bungieApi')
-        this.progress = progress || function() {}
     }
 
     static importMemberships() {
         const platforms = { 1: 'xbox', 2: 'playstation', 3: 'steam', 5: 'stadia'}
 
         return this.loadMemberships().then(() => {
-            this.progress()
+            Progress.report()
             let memberships = this.memberships
             let destinyMemberships = memberships.destinyMemberships
             let username = memberships.bungieNetUser.displayname
@@ -63,7 +62,7 @@ class Bungie {
         }
 
         return this.loadActivityHistory().then(() => {
-            this.progress()
+            Progress.report()
             let activities = this.activityHistory
             for (var activity in activities) {
                 if (!profile.getActivity(activity)) {
@@ -84,7 +83,7 @@ class Bungie {
             return new Promise((resolve) => resolve(this))
 
         return this.api({ endpoint: '/User/GetMembershipsForCurrentUser/' }).then((result) => {
-            this.progress()
+            Progress.report()
             this.memberships = result.data
 
             for (let membership of this.memberships.destinyMemberships) {
@@ -101,7 +100,7 @@ class Bungie {
             return new Promise((resolve) => resolve(this))
 
         return this.loadMemberships().then(() => {
-            this.progress()
+            Progress.report()
             var endpoint = '/Destiny2/' + 
                 this.memberships.primaryMembershipType +
                 '/Profile/' +
@@ -109,7 +108,7 @@ class Bungie {
                 '?components=200'
 
             return this.api({ endpoint: endpoint }).then((result) => {
-                this.progress()
+                Progress.report()
                 var characters = result.data.characters.data
                 this.characters = Object.keys(characters).map(key => characters[key])
 
@@ -150,7 +149,7 @@ class Bungie {
         this.activityHistory = {}
 
         return Promise.all([ this.loadCharacters(), this.loadActivityDefinitions() ]).then(() => {
-            this.progress()
+            Progress.report()
             var promises = []
             
             for (let character of this.characters) {
@@ -164,7 +163,7 @@ class Bungie {
 
                 promises.push(
                     this.api({ endpoint: endpoint }).then((result) => { 
-                        this.progress()
+                        Progress.report()
                         for (let activity of result.data.activities) {
                             this.appendActivityHistory(activity)
                         }                        
@@ -182,7 +181,7 @@ class Bungie {
         }
 
         return this.api({ endpoint: '/Destiny2/Manifest' }).then((result) => {
-            this.progress()
+            Progress.report()
             this.manifest = result.data
 
             return this
@@ -195,7 +194,7 @@ class Bungie {
         }
 
         return this.loadManifest().then(() => {
-            this.progress()
+            Progress.report()
             let url = 'https://www.bungie.net/' + 
                 this.manifest.jsonWorldComponentContentPaths.en.DestinyActivityDefinition
 

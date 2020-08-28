@@ -1,0 +1,3 @@
+#!/bin/sh
+
+cp -R "$PROJECT_DIR/public/js/busyguardian" "$PROJECT_DIR/functions/busyguardian"

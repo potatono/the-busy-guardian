@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-global.window = {}
-
 var admin = require('firebase-admin');
-var Profile = require('profile').Profile;
+var Profile = require('busyguardian').Profile;
 
 admin.initializeApp({
     credential: admin.credential.applicationDefault(),

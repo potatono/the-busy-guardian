@@ -1,7 +1,7 @@
 (function() {
-    var Schema = window.Schema || require("schema").Schema
-    var Model = window.Model || require("model").Model
-    var Collection = window.Collection || require("collection").Collection
+    var Schema = require("./schema").Schema
+    var Model = require("./model").Model
+    var Collection = require("./collection").Collection
 
     class Platform extends Model {
         static defineSchema() {
@@ -32,7 +32,7 @@
         exports.Platform = Platform
         exports.Platforms = Platforms
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.Platform = Platform
         window.Platforms = Platforms
     }

@@ -1,0 +1,86 @@
+<div class="game card mb-3">
+    <div class="row no-gutters">
+        <div class="col-md-2"  style="max-width: 100px; margin: auto 0 auto">
+            <img src="/img/activity-{{activityType}}.png" class="card-img" alt="Raid" width="100">
+        </div>
+        <div class="col-md-10">
+            <div class="card-body">
+                <h5 class="card-title text-danger">{{activityName}}</h5>
+
+
+                <div class="row">
+                    <div class="col-md-2">Platform</div>
+                    <div class="col-md-10">
+                        <img src="/img/platform-{{platform}}@32.png">
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-2">Date</div>
+                    <div class="col-md-10">
+                        {{displayDate}} @ {{displayStartTime}} - {{displayEndTime}}
+                    </div>
+                </div>
+
+                <div class="row">
+                <div class="col-md-2">Players</div>
+                <div class="col-md-10">
+                    <div class="row">
+                        {{#each players}}{{#unless isAlternate}}
+                            <div class="col-md-4">
+                            {{username}} <small class="text-muted" style="margin-right: 10px">({{experience}})</small>
+                            </div>
+                        {{/unless}}{{/each}}
+                    </div>
+                </div>
+                </div>
+
+                <div class="row">
+                <div class="col-md-2">Alternates</div>
+                <div class="col-md-10">
+                    <div class="row">
+                        {{#each players}}{{#if isAlternate}}
+                            <div class="col-md-4">
+                            {{username}} <small class="text-muted" style="margin-right: 10px">({{experience}})</small>
+                            </div>
+                        {{/if}}{{/each}}
+                    </div>
+                </div>
+                </div>
+
+
+                <div class="row" style="margin-top: 20px; margin-bottom: 20px">
+                <div class="col-md-2"></div>
+                <div class="col-md-10">
+
+                    {{#if isConfirmed}}
+                    <button class="btn btn-success" disabled>Confirmed</button>
+                    {{else}}
+                    <button class="btn btn-outline-success" onclick="controller.confirmGame('{{id}}', this)">Confirm</button>
+                    {{/if}}
+                    <button class="btn btn-outline-danger" onclick="controller.leaveGame('{{id}}', this)">Leave</button>
+
+
+
+                    <div class="btn-group">
+                    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Add to Calendar
+                    </button>
+                    <div class="dropdown-menu">
+                        <a href="{{googleCalendarUrl}}" class="dropdown-item" target="_blank">Google</a>
+                        <a href="{{outlookCalendarUrl}}" class="dropdown-item" target="_blank">Outlook</a>
+                        <a href="{{icsCalendarUrl}}" class="dropdown-item" target="_blank" download="TbG-{{id}}.ics">iCal</a>
+
+                    </div>
+                    </div>
+
+                    
+                </div>
+                </div>
+
+                <p class="card-text"><small class="text-muted">Last updated {{displayUpdatedOn}}</small></p>
+
+            </div>
+        </div>
+    </div>
+</div>

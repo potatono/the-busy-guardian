@@ -1,9 +1,9 @@
 
 (function() {
-    var Schema = window.Schema || require("schema").Schema
-    var Progress = window.Progress || require("progress").Progress
-    var firebase = window.firebase || require("firebase-admin")
-    var moment = window.moment || require("moment-timezone")
+    var Schema = require("./schema").Schema
+    var Progress = require("./progress").Progress
+    var firebase = require("firebase-admin").firebase || require("firebase-admin")
+    var moment = require("moment-timezone").moment || require("moment-timezone")
     
 
     // Sets are used for groups of checkboxes, we extend them with
@@ -63,6 +63,7 @@
          * @param {*} data Initialization data
          */
         constructor(path, id, data) {
+            // TODO REFACTOR: Remove path from constructor, figure out a better way for sub documents
             this.path = path || null
             this.isNew = !id
             this.id = id || this.constructor.generateId()
@@ -505,7 +506,7 @@
          */
         delete() {
             if (this.autoCommit) {
-                console.log("Deleting", this.absolutePath)
+                //console.log("Deleting", this.absolutePath)
                 return Promise.all([ this.deleteCollections(), this.doc().delete() ])
             }
         }
@@ -540,7 +541,7 @@
     if (typeof(exports) != "undefined") {
         exports.Model = Model
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.Model = Model
     }
 })()

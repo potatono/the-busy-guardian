@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 
-if (typeof(window) == "undefined") global.window = {}
-
 var admin = require('firebase-admin');
-var Model = require('model').Model
-var Profiles = require('profile').Profiles
-var Activity = require('activity').Activity
-var Platform = require('platform').Platform
-var GameBuilder = require('game').GameBuilder
+var Model = require('busyguardian').Model
+var Profiles = require('busyguardian').Profiles
+var Activity = require('busyguardian').Activity
+var Platform = require('busyguardian').Platform
+var GameBuilder = require('busyguardian').GameBuilder
 
 admin.initializeApp({
     credential: admin.credential.applicationDefault(),
@@ -37,7 +35,8 @@ function getAllActivities() {
     return result
 }
 
-var commit = process.argv[2] == "commit";
+var daysOut = parseInt(process.argv[2]) || 0
+var commit = process.argv[process.argv.length - 1] == "commit";
 
 var time = (new Date()).getTime()
 var platforms = getAllPlatforms()
@@ -49,7 +48,7 @@ getAllPlayers().then(players => {
     var builder = new GameBuilder(players)
 
     platforms.forEach(platform => { activities.forEach(activity => {
-        var games = builder.build(platform, activity)
+        var games = builder.build(platform, activity, daysOut)
 
         games.forEach(game => {
             game.log()
@@ -68,6 +67,7 @@ getAllPlayers().then(players => {
     console.log("Placed", players.length, "players in", (endTime - time)/1000, "seconds.")
     
     if (!commit) {
-        console.log("Did not save games. Use `",process.argv[1]," commit` to save.")
+        console.log("Did not save games. Use `",process.argv[1]," [daysOut] commit` to save.")
     }
 })
+.catch(err => console.error(err))

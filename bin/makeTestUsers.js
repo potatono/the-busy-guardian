@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-global.window = {}
 
 var admin = require('firebase-admin');
-var TestUser = require('test').TestUser
+var TestUser = require('busyguardian').TestUser
 
 admin.initializeApp({
     credential: admin.credential.applicationDefault(),

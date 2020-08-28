@@ -1,8 +1,8 @@
 (function() {
-    var Schema = window.Schema || require("schema").Schema
-    var Model = window.Model || require("model").Model
-    var Collection = window.Collection || require("collection").Collection
-    var moment = window.moment || require("moment-timezone")
+    var Schema = require("./schema").Schema
+    var Model = require("./model").Model
+    var Collection = require("./collection").Collection
+    var moment = require("moment-timezone").moment || require("moment-timezone")
 
     class PlayWindow extends Model {
         static defineSchema() {
@@ -40,7 +40,7 @@
             return diff == -1 || diff == -6
         }
 
-        // This will only work using current planning strategy of scheduleing the 24 hours following today's reset in PST
+        // Planning around change over from daylight savings will be off by one
         canPlay(targetMoment, duration) {
             if (!this.timezone || !this.startTime || !this.endTime)
                 return false
@@ -72,28 +72,32 @@
             // we may need to subract one.
             var dowMoment = startMoment.clone()
 
+            // If planning before reset time add a day
             if (targetMoment.hour() < 9)
                 dowMoment.add(1, 'day')
-
-            var targetDow = dowMoment.format("ddd")
+           
             var targetDowMoment = dowMoment.clone().tz("America/Los_Angeles")
 
             // Edge case around midnight in PST is the day before in Honolulu.
             if (this.dayBefore(dowMoment, targetDowMoment)) {
-                targetDow = dowMoment.clone().subtract(1, 'day').format('ddd')
+                dowMoment.subtract(1, 'day').format('ddd')
             }
             else if (dowMoment.day() != targetDowMoment.day()) {
-                targetDow = dowMoment.clone().add(1, 'day').format("ddd")
+                dowMoment.add(1, 'day').format("ddd")
             }
 
-            //console.log(this.days, targetDow, targetTime/1000, startTime/1000, endTime/1000, targetTime >= startTime && targetTime <= endTime)
+            // If the targetMoment is in the future, add days
+            dowMoment.add(targetMoment.diff(dowMoment, 'days'), 'days')
+            var targetDow = dowMoment.format("ddd")
+
+            // console.log(this.days, targetDow, targetTime/1000, startTime/1000, endTime/1000, targetTime >= startTime && targetTime <= endTime)
             var result = this.days.has(targetDow) && targetTime >= startTime && targetTime <= endTime
             
             if (!duration || !result)
                 return result
 
             targetTime += duration * 60 * 60 * 1000
-            //console.log(targetTime/1000, startTime/1000, endTime/1000, targetTime >= startTime && targetTime <= endTime)
+            // console.log(targetTime/1000, startTime/1000, endTime/1000, targetTime >= startTime && targetTime <= endTime)
 
             return result && targetTime >= startTime && targetTime <= endTime
         
@@ -130,7 +134,7 @@
         exports.PlayWindow = PlayWindow
         exports.PlayWindows = PlayWindows
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.PlayWindow = PlayWindow
         window.PlayWindows = PlayWindows
     }

@@ -13,7 +13,24 @@
     "rewrites": [ {
       "source": "/auth",
       "function": "auth"
-    } ]
+    },
+    {
+      "source": "/discord",
+      "function": "discord"
+    },
+    {
+      "source": "/games",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/games/**",
+      "destination": "/app.html"
+    },
+    {
+      "source": "/profile",
+      "destination": "/app.html"
+    }
+  ]
   },
   "emulators": {
     "functions": {
@@ -31,5 +48,9 @@
     "ui": {
       "enabled": true
     }
+  },
+  "functions": {
+    "predeploy": "./cpdeps",
+    "postdeploy": "./rmdeps"
   }
 }

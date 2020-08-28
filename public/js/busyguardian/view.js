@@ -1,7 +1,7 @@
 (function() {
-    var Schema = window.Schema || require("schema").Schema
-    var Model = window.Model || require("model").Model
-    var Collection = window.Collection || require("collection").Collection
+    var Schema = require("./schema").Schema
+    var Model = require("./model").Model
+    var Collection = require("./collection").Collection
 
     String.prototype.splitCamelCase = function() {
         var str = this.replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -419,17 +419,18 @@
         }
 
         buildHelpIcon(help) {
-            var tmp = document.createElement("template")
+            var element = document.createElement("a")
+            element.href="#"
             var icon = "help-circle"
-            tmp.innerHTML = feather.icons[icon].toSvg({ 'class': 'help'})
-            var icon = tmp.content.firstChild
+            element.innerHTML = feather.icons[icon].toSvg({ 'class': 'help'})
 
-            $(icon).popover({
-                trigger: 'hover',
+            $(element).popover({
+                trigger: 'click focus',
                 content: help,
-                placement: 'auto'
+                placement: 'auto',
+                html: true
             })
-            return icon
+            return element
         }
 
         buildField(field) {
@@ -494,15 +495,6 @@
                 throw new Error("Invalid template supplied to TemplateView")
         }
 
-        buildId(name, suffix) {
-            var result = this.data ? this.data.subpath(name) : name
-
-            if (suffix)
-                result = result + "/" + suffix
-            
-            return result
-        }
-
         build() {
             this.container = document.createElement("div")
 
@@ -527,18 +519,18 @@
 
         add(model) {
             var div = document.createElement("div")
-            div.id = model.absolutePath
+            div.id = model.id
             div.innerHTML= this.template(model, { allowProtoPropertiesByDefault: true })
             this.container.appendChild(div)
         }
 
         remove(model) {
-            var div = document.getElementById(model.absolutePath)
+            var div = document.getElementById(model.id)
             this.container.removeChild(div)
         }
 
         update(model) {
-            var div = document.getElementById(model.absolutePath)
+            var div = document.getElementById(model.id)
             div.innerHTML = this.template(model, { allowProtoPropertiesByDefault: true })
         }
     }
@@ -654,9 +646,9 @@
 
     if (typeof(exports) != "undefined") {
         exports.FormView = FormView
-        exports.TemplateView = FormView
+        exports.TemplateView = TemplateView
     }
-    else if (typeof(window) != "undefined") {
+    if (typeof(window) != "undefined") {
         window.FormView = FormView
         window.TemplateView = TemplateView
     }

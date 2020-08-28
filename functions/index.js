@@ -6,16 +6,19 @@ const admin = require('firebase-admin');
 
 const axios = require('axios')
 const querystring = require('querystring');
-const { firebaseConfig } = require('firebase-functions');
+
+var Model = require('busyguardian').Model
+var Profile = require('busyguardian').Profile
+var Game = require('busyguardian').Game
 
 admin.initializeApp();
 
-function createState(req) {
+function createState(req, key) {
     // Between cloudflare and google we get bounced around so much that x-forwarded-for
     // doesn't actually contain the client ip and it changes with every request.
     var ip = req.headers['cf-connecting-ip'] || req.connection.remoteAddress;
     var agent = req.headers['user-agent'];
-    var key = functions.config().bungie.api.key;
+    key = key || functions.config().bungie.api.key;
 
     var data = key + ip + agent
     var hash =  crypto.createHash('sha256').update(data).digest('hex')
@@ -159,6 +162,76 @@ exports.auth = functions.https.onRequest((req, res) => {
     })    
 });
 
+function requestDiscordToken(req) {
+    var data = querystring.stringify({
+        code: req.query.code,
+        grant_type: "authorization_code",
+        client_id: functions.config().discord.client.id,
+        client_secret: functions.config().discord.client.secret,
+        redirect_uri: "https://thebusyguardian.com/discord",
+        scope: "identify"
+    })
+
+    return axios({
+        method: 'post',
+        url: 'https://discord.com/api/v6/oauth2/token',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        data: data
+    })
+}
+
+function discordApiCall(access_token, endpoint) {
+    return axios({
+        url: 'https://discord.com/api/v6/' + endpoint,
+        headers: {
+            'Authorization': `Bearer ${access_token}`
+        }
+    })
+    
+}
+
+exports.discord = functions.https.onRequest((req, res) => {
+    var state = createState(req, functions.config().discord.client.secret)
+
+    if (!req.query.code || !req.query.state) {
+        var url = 'https://discord.com/api/oauth2/authorize?client_id=' +
+            functions.config().discord.client.id +
+            '&redirect_uri=https%3A%2F%2Fthebusyguardian.com%2Fdiscord&' +
+            'response_type=code&scope=identify&state=' +
+            state
+ 
+        res.redirect(url)
+        return
+    }
+
+    if (!/localhost/.test(req.headers['host']) && /^L/.test(req.query.state)) {
+        res.redirect(`http://localhost:5000/discord?code=${req.query.code}&state=${req.query.state}`)
+        return
+    }
+
+    if (req.query.state != state) {
+        functions.logger.error(`request state = ${req.query.state} != calc state = ${state}`)
+        res.status(401).send("Uh oh: Invalid state")
+        return
+    }
+
+    requestDiscordToken(req).then(response => {
+        functions.logger.info(response.data)
+        var token = response.data.access_token
+
+        discordApiCall(token, '/users/@me').then(response => {
+            res.redirect('/profile?discord_id=' + response.data.id)
+        })
+    })
+    .catch((error) => {
+        functions.logger.error(error, {structuredData: true})
+        var message = "Discord servers responded with: " + error.response.data.error_description
+        res.send(message)
+    })    
+});
+
+
+
 exports.bungieApi = functions.https.onCall((data, context) => {
     let uid = context.auth.uid
     let endpoint = data.endpoint
@@ -192,3 +265,84 @@ exports.bungieApi = functions.https.onCall((data, context) => {
         }
     })
 })
+
+exports.joinGame = functions.https.onCall((data, context) => {
+    let uid = context.auth.uid
+    let gid = data.gid
+
+    if (!uid)
+        throw new functions.https.HttpsError('permission-denied', 'Please log in before joining a game')
+    
+    if (!gid)
+        throw new functions.https.HttpsError('invalid-argument', 'No gid specified')
+
+    Model.autoCommit = false
+    var profile = new Profile(uid)
+    var game = new Game(gid)
+
+    return Promise.all([ profile.load(), game.load() ]).then(() => {
+        try {
+            var player = game.join(profile)
+            return Promise.all([ player.save(), profile.save() ]).then(() => true)
+        }
+        catch (err) {
+            functions.logger.error("Caught error", err)
+            throw new functions.https.HttpsError('unknown', err.message)
+        }
+    })
+})
+
+exports.confirmGame = functions.https.onCall((data, context) => {
+    let uid = context.auth.uid
+    let gid = data.gid
+
+    if (!uid)
+        throw new functions.https.HttpsError('permission-denied', 'Please log in before joining a game')
+    
+    if (!gid)
+        throw new functions.https.HttpsError('invalid-argument', 'No gid specified')
+
+    Model.autoCommit = false
+    var profile = new Profile(uid)
+    var game = new Game(gid)
+
+    return Promise.all([ profile.load(), game.load() ]).then(() => {
+        try {
+            var player = game.confirm(profile)
+            if (!player)
+                return false
+            
+            return Promise.all([ player.save(), profile.save() ]).then(() => true)
+        }
+        catch (err) {
+            functions.logger.error("Caught error", err)
+
+            throw new functions.https.HttpsError('unkonwn', err.message)
+        }
+    })
+})
+
+exports.leaveGame = functions.https.onCall((data, context) => {
+    let uid = context.auth.uid
+    let gid = data.gid
+
+    if (!uid)
+        throw new functions.https.HttpsError('permission-denied', 'Please log in before joining a game')
+    
+    if (!gid)
+        throw new functions.https.HttpsError('invalid-argument', 'No gid specified')
+
+    var profile = new Profile(uid)
+    var game = new Game(gid)
+
+    return Promise.all([ profile.load(), game.load() ]).then(() => {
+        try {
+            game.leave(profile)
+            return profile.save().then(() => true)
+        }
+        catch (err) {
+            throw new functions.https.HttpsError('unkonwn', err.message)
+        }
+    })
+})
+

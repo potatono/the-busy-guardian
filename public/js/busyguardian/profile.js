@@ -8,10 +8,8 @@
     var moment = require("moment-timezone").moment || require("moment-timezone")
 
     class Profile extends Model {
-        constructor(path, id, data) {
-            super("profiles", 
-                  path == "profiles" ? id : path, 
-                  path == "profiles" ? data : id)
+        constructor(id, options) {
+            super(id, options)
 
             this.playWindows.addListener((change, playWindow) =>  {
                 if (change == "added") {
@@ -37,7 +35,7 @@
             schema.add("timezone", String, { control: "select", values: moment.tz.names(), default: moment.tz.guess(), label: "Time Zone",
                 help: "What timezone you will be playing in.  We've guessed, but make sure it looks right to you."
             })
-            schema.add("notifyVia", String, { control: "select", values: ["email", "discord"], default: "email", label:"Send Notifications To",
+            schema.add("notifyVia", Set, { values: ["email", "discord"], default: new Set(["email", "discord"]), label:"Send Notifications To",
                 help: "How you would like to be notified when added to a fireteam.  You'll need to join " +
                       "<a href=\"https://discord.gg/Z88Dv6W\" target=\"_blank\">https://discord.gg/Z88Dv6W</a> for Discord notifications."
             })
@@ -55,8 +53,12 @@
             schema.add("bungiePrimaryMembershipType", Number, { control: "none" })
             schema.add("bungieImportComplete", Boolean, { control: "none", default: false })
             schema.add("games", Array, { control: "none", default: [] })
+            // Rules prevent users from editing their own awards, but we'll initialize to the defaults for the
+            // first load experience.
+            schema.add("awards", Array, { control: "none", default: ["Beta Tester"], readonly: true })
             
             schema.setOption("useGlobalId", true)
+            schema.setOption("defaultPath", "profiles")
 
             return schema
         }

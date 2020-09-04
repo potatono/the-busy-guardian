@@ -1,7 +1,7 @@
 <div class="game card mb-3">
     <div class="row no-gutters">
         <div class="col-md-2"  style="max-width: 100px; margin: auto 0 auto">
-            <img src="/img/activity-{{activityType}}.png" class="card-img" alt="Raid" width="100">
+            <img src="/img/activity-{{activityType}}.png" class="card-img" alt="{{activityType}}" width="100">
         </div>
         <div class="col-md-10">
             <div class="card-body">
@@ -27,8 +27,12 @@
                 <div class="col-md-10">
                     <div class="row">
                         {{#each players}}{{#unless isAlternate}}
-                            <div class="col-md-4">
-                            {{username}} <small class="text-muted" style="margin-right: 10px">({{experience}})</small>
+                            <div class="col-md-6">
+                            <img src="/img/badges/{{#unless isConfirmed}}un{{/unless}}confirmed.svg" width="24" class="award" title="{{#unless isConfirmed}}un{{/unless}}confirmed" />
+                            {{username}}
+                            <img src="/img/badges/{{experience}}.svg" width="24" class="award" title="{{displayExperience}}" />
+                            {{#each awards}}<img src="/img/badges/{{this}}.svg" width="24" class="award" title="{{this}}" />
+                            {{/each}}
                             </div>
                         {{/unless}}{{/each}}
                     </div>
@@ -40,8 +44,12 @@
                 <div class="col-md-10">
                     <div class="row">
                         {{#each players}}{{#if isAlternate}}
-                            <div class="col-md-4">
-                            {{username}} <small class="text-muted" style="margin-right: 10px">({{experience}})</small>
+                            <div class="col-md-6">
+                            <img src="/img/badges/{{#unless isConfirmed}}un{{/unless}}confirmed.svg" width="24" class="award" title="{{#unless isConfirmed}}un{{/unless}}confirmed" />
+                            {{username}}
+                            <img src="/img/badges/{{experience}}.svg" width="24" class="award" title="{{displayExperience}}" />
+                            {{#each awards}}<img src="/img/badges/{{this}}.svg" width="24" class="award" title="{{this}}" />
+                            {{/each}}
                             </div>
                         {{/if}}{{/each}}
                     </div>
@@ -52,14 +60,16 @@
                 <div class="row" style="margin-top: 20px; margin-bottom: 20px">
                 <div class="col-md-2"></div>
                 <div class="col-md-10">
-
-                    {{#if isConfirmed}}
-                    <button class="btn btn-success" disabled>Confirmed</button>
+                    {{#if isOwner}}
+                        <button class="btn btn-danger" onclick="controller.deleteGame('{{id}}', this)">Delete</button>
                     {{else}}
-                    <button class="btn btn-outline-success" onclick="controller.confirmGame('{{id}}', this)">Confirm</button>
+                        {{#if isConfirmed}}
+                        <button class="btn btn-success" disabled>Confirmed</button>
+                        {{else}}
+                        <button class="btn btn-outline-success" onclick="controller.confirmGame('{{id}}', this)">Confirm</button>
+                        {{/if}}
+                        <button class="btn btn-outline-danger" onclick="controller.leaveGame('{{id}}', this)">Leave</button>
                     {{/if}}
-                    <button class="btn btn-outline-danger" onclick="controller.leaveGame('{{id}}', this)">Leave</button>
-
 
 
                     <div class="btn-group">
@@ -70,7 +80,6 @@
                         <a href="{{googleCalendarUrl}}" class="dropdown-item" target="_blank">Google</a>
                         <a href="{{outlookCalendarUrl}}" class="dropdown-item" target="_blank">Outlook</a>
                         <a href="{{icsCalendarUrl}}" class="dropdown-item" target="_blank" download="TbG-{{id}}.ics">iCal</a>
-
                     </div>
                     </div>
 

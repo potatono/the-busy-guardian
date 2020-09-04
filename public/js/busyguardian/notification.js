@@ -1,34 +1,63 @@
 (function() {
-    var config = require('../../../functions/.runtimeconfig.json')    
+    // TODO Change this to take a constructor param
     var axios = require('axios')
+    var emoji = {
+        'confirmed': '<:confirmed:751095762275926029>',
+        'unconfirmed': '<:unconfirmed:751095762775048200>',
+        'steam': '<:steam:748550766431830046>',
+        'playstation': '<:playstation:748550766440218704>',
+        'xbox': '<:xbox:748550766112800840>',
+        'stadia': '<:stadia:748550766431567954>',
+        'Beta Tester': '<:BetaTester:751083617391739001>',
+        'Founder': '<:Founder:751083804491513978>',
+        'Coder': '<:Coder:751083563713167440>',
+        'Hacker': '<:Hacker:751097800745418943>',
+        'Streamer': '<:Streamer:751083573867446343>',
+        'newbie': '<:newbie:751083436252463124>',
+        'researched': '<:researched:751083478162079784>',
+        'played': '<:played:751083499179737120>',
+        'completed': '<:completed:751083540397031424>',
+        'veteran': '<:veteran:751083552002539640>',
+        'sherpa': '<:sherpa:751083524504813589>'
+    }
 
     class Notification {
-        constructor(game, profiles, msg) {
+        constructor(config, game, profiles, msg) {
+            this.config = config
             this.game = game
             this.profiles = profiles
             this.msg = msg
         }
 
+        formatPlayerDiscord(player) {
+            var result = (player.isConfirmed ? emoji.confirmed : emoji.unconfirmed) + " " +
+                player.username + " " +
+                emoji[player.experience]
+
+            if (player.awards)
+                player.awards.forEach(award => { if (emoji[award]) result += ` ${emoji[award]}` })
+            
+            return result
+
+        }
         formatDiscord(discordIds) {
             var game = this.game
-            var platformEmoji = { 'steam': '<:steam:748550766431830046>', 'playstation': '<:playstation:748550766440218704>', 
-                'xbox': '<:xbox:748550766112800840>', 'stadia': '<:stadia:748550766431567954>' }
 
             var mentions = discordIds.map(id => `<@${id}>`).join(' ')
             var fields = [
                 { name: "Date:", value: game.pstDate, inline: true },
                 { name: "Time:", value: game.pstStartTime, inline: true },
                 { name: "Duration:", value: game.duration + " hours", inline: true },
-                { name: "Platform:", value: `${platformEmoji[game.platform]} ${game.displayPlatform}`, inline: true },
+                { name: "Platform:", value: `${emoji[game.platform]} ${game.displayPlatform}`, inline: true },
                 { name: "Players:", value: (
                     game.players.filter(player => !player.isAlternate)
-                        .map(player => `${player.isConfirmed ? ':white_check_mark:' : ':hourglass:'} ${player.username} [${player.experience}]`)
-                        .join(",\n")
+                        .map(player => this.formatPlayerDiscord(player))
+                        .join("\n")
                 )},
                 { name: "Alternates:", value: (
                     game.players.filter(player => player.isAlternate)
-                        .map(player => `${player.isConfirmed ? ':white_check_mark:' : ':hourglass:'} ${player.username} [${player.experience}]`)
-                        .join(",\n")
+                        .map(player => this.formatPlayerDiscord(player))
+                        .join("\n")
                 )}
             ]
 
@@ -49,7 +78,7 @@
 
         sendDiscord() {
             var discordIds = this.profiles
-                .filter(profile => profile.discordId && profile.notifyVia == "discord")
+                .filter(profile => profile.discordId && profile.notifyVia instanceof Set && profile.notifyVia.has("discord"))
                 .map(profile => profile.discordId)
             
             if (discordIds.length == 0)
@@ -59,7 +88,7 @@
 
             return axios({
                 method: 'post',
-                url: config.discord.webhook.url,
+                url: this.config.discord.webhook.url,
                 data: data
             })
         }
@@ -84,7 +113,7 @@
 
         sendEmail() {
             var recipients = this.profiles
-                .filter(profile => profile.email && profile.notifyVia == "email")
+                .filter(profile => profile.email && profile.notifyVia instanceof Set && profile.notifyVia.has("email"))
                 .map(profile => ({ name: profile.username, email: profile.email }))
 
             if (recipients.length == 0)
@@ -94,8 +123,8 @@
 
             return axios({
                 method: 'post',
-                headers: { 'api-key': config.mailer.api.key },
-                url: config.mailer.api.endpoint,
+                headers: { 'api-key': this.config.mailer.api.key },
+                url: this.config.mailer.api.endpoint,
                 data: data
             })
         }

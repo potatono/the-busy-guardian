@@ -34,13 +34,13 @@
 
     <script defer src="/js/exports-shim.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/time-input-polyfill@1.0.9/core/helpers/supportsTime.js"></script>
-
+    <script defer src="https://cdn.jsdelivr.net/npm/better-dom@4.1.0/dist/better-dom.min.js" integrity="sha256-2DLtTYCO4o9p3NMebRY+iyQcIsnn8rgBrPvTr+dF8ZA=" crossorigin="anonymous"></script>
+    <script defer src="/js/better-dateinput-polyfill.js"></script>
     <script defer src="/js/busyguardian/schema.js"></script>
     <script defer src="/js/busyguardian/progress.js"></script>
     <script defer src="/js/busyguardian/model.js"></script>
     <script defer src="/js/busyguardian/collection.js"></script>
     <script defer src="/js/busyguardian/view.js"></script>
-    <script defer src="/js/busyguardian/user.js"></script>
 
     <script defer src="/js/busyguardian/platform.js?"></script>
     <script defer src="/js/busyguardian/playwindow.js?"></script>
@@ -51,6 +51,7 @@
     <script defer src="/js/busyguardian/bungie.js"></script>
     
     <script defer src="/js/busyguardian/templates.js"></script>
+    <script defer src="/js/busyguardian/user.js"></script>
     <script defer src="/js/busyguardian/app.js"></script>
  
   </head>
@@ -74,12 +75,21 @@
           <li class="nav-item" data-path="/games">
             <a class="nav-link" href="/games">All Games</a>
           </li>
-          <li class="nav-item" data-path="/games/new">
-            <a class="nav-link" href="/games/new">Create Game</a>
+          <li class="nav-item" data-path="/games/edit">
+            <a class="nav-link" href="/games/edit">Create Game</a>
           </li>
         </ul>
-        
-        <span id="username" class="navbar-text"></span>
+        <span class="navbar-text" id="awards"></span>
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" data-toggle="dropdown" id="username"></a>
+            <div class="dropdown-menu">
+              <a class="dropdown-item" href="/logout">Logout</a>
+            </div>
+          </li>
+        </ul>
+
+        <!--<span id="username" class="navbar-text"></span>-->
       </div>
     </nav>
 

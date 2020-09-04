@@ -97,7 +97,8 @@
         }
 
         instantiate(id, data) {
-            var obj = new this.cls(this.path, id, data)
+            // var obj = new this.cls(this.path, id, data)            
+            var obj = new this.cls(id, { path: this.path, data: data })
             return obj
         }
 

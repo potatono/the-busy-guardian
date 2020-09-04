@@ -1,3 +1,4 @@
 #!/bin/sh
 
+rm -rf "$PROJECT_DIR/functions/busyguardian"
 cp -R "$PROJECT_DIR/public/js/busyguardian" "$PROJECT_DIR/functions/busyguardian"

@@ -58,13 +58,12 @@
         /**
          * The model class represents a Firestore document.
          * 
-         * @param {*} path The collection path that this document will live under
          * @param {*} id Document id (optional, will auto-generate)
-         * @param {*} data Initialization data
+         * @param {*} options Options { path: Document path, data: Initialize data }
          */
-        constructor(path, id, data) {
-            // TODO REFACTOR: Remove path from constructor, figure out a better way for sub documents
-            this.path = path || null
+        constructor(id, options) {
+            options = options || {}
+            this.path = options.path || this.getSchema().options.defaultPath
             this.isNew = !id
             this.id = id || this.constructor.generateId()
             this.data = {}
@@ -73,8 +72,8 @@
             this.autoCommit = typeof(Model.autoCommit) != "undefined" ? Model.autoCommit : true
             this.defineProperties()
 
-            if (data) {
-                this.setFromDoc({ exists: true, id: this.id, data: (_ => data) })
+            if (options.data) {
+                this.setFromDoc({ exists: true, id: this.id, data: (_ => options.data) })
             }
         }
 
@@ -103,7 +102,13 @@
             if (this.getSchema().options.useGlobalId) {
                 var time = Math.floor(((new Date()).getTime() - Date.parse("2020-01-01")) / 100)
                 var user = firebase.auth().currentUser
-                var uid = (user && user.uid) || ("A" + Math.floor(Math.random()*900000+100000).toString(36))
+                var uid = user && user.uid && user.uid.replace(/^\w+\:/,'')
+                
+                if (/^\d+$/.test(uid))
+                    uid = parseInt(uid).toString(36)
+                 
+                uid = uid || ("A" + Math.floor(Math.random()*900000+100000).toString(36))
+
                 var rand = Math.floor(Math.random()*900000+100000)
 
                 var uuid = [ time.toString(36), uid, rand.toString(36) ].join('-')
@@ -206,7 +211,10 @@
                 },
 
                 set(value) {
-                    this.data[field.name].importObject(value)
+                    if (typeof(value) == "string")
+                        this.data[field.name].add(value)
+                    else
+                        this.data[field.name].importObject(value)
                 }
             })
         }
@@ -279,8 +287,9 @@
 
             if (field.cls === Set)
                 return value.asObject()
-            else if (field.cls === moment) 
+            else if (field.cls === moment && value.format) {
                 return value.format(field.options.format)
+            }
             else 
                 return value
         }
@@ -293,8 +302,12 @@
             var schema = this.getSchema()
 
             for (let field of schema.fields) {
-                if (!field.isCollection && typeof(this.data[field.name]) != "undefined")
+                if (!field.isCollection && 
+                    typeof(this.data[field.name]) != "undefined" &&
+                    !field.options.readonly
+                ) {
                     doc[field.name] = this.serialize(field)
+                }
             }
 
             doc['updatedOn'] = firebase.firestore.FieldValue.serverTimestamp()
@@ -331,7 +344,7 @@
 
             let doc = this.makeDoc()
             var promise
-
+            
             // If we're setting our own id and the doc doesn't exist we won't know
             // and update will fail.
             if (this.isNew || !this.isLoaded) {
@@ -359,7 +372,7 @@
         deserialize(field, data) {
             var value = data[field.name]
 
-            if (field.cls == moment) {
+            if (field.cls == moment && value) {
                 var timezone = field.options.timezone || (field.options.timezoneField && data[field.options.timezoneField])
                 var format = field.options.format
 
@@ -369,6 +382,9 @@
                     return moment.tz(value, timezone)
                 else
                     return moment(value)
+            }
+            else if (field.cls == Date && value instanceof firebase.firestore.Timestamp) {
+                return value.toDate()
             }
             else {
                 return value
@@ -426,7 +442,9 @@
         /**
          * Loads this model from Firestore
          */
-        load() {
+        load(options) {
+            options = options || {}
+
             if (this.isNew) 
                 console.log("Trying to load isNew model, will always fail")
             
@@ -441,7 +459,7 @@
                 })
                 .catch(function(err) { console.log("Error getting document:", err) })
             
-            var collectionPromise = this.loadCollections()
+            var collectionPromise = options.includeCollections === false ? null : this.loadCollections()
 
             return Promise.all([ promise, collectionPromise ])
         }
@@ -461,7 +479,9 @@
         /**
          * Listens for changes this model in Firestore
          */
-        listen() {
+        listen(options) {
+            options = options || {}
+
             if (this.isNew)
                 console.log("Trying to listen to isNew model, will always fail")
 
@@ -472,7 +492,8 @@
                 self.setFromDoc(doc)
             })
 
-            this.listenCollections()
+            if (options.includeCollections !== false)
+                this.listenCollections()
         }
 
         /**
@@ -508,6 +529,17 @@
             if (this.autoCommit) {
                 //console.log("Deleting", this.absolutePath)
                 return Promise.all([ this.deleteCollections(), this.doc().delete() ])
+            }
+        }
+
+        copy(model) {
+            var schema = this.getSchema()
+
+            for (let field of schema.fields) {
+                // TODO implement collection copy
+                if (!field.isCollection) {
+                    this[field.name] = model[field.name]
+                }
             }
         }
 

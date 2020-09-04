@@ -15,8 +15,14 @@
             schema.add("experience", String)
             schema.add("isAlternate", Boolean)
             schema.add("isConfirmed", Boolean)
+            schema.add("awards", Array)
 
             return schema
+        }
+
+        get displayExperience() {
+            return this.experience.charAt(0).toUpperCase() + this.experience.slice(1);
+
         }
     }
 
@@ -27,13 +33,6 @@
     }
 
     class Game extends Model {
-
-        constructor(path, id, data) {                
-            super("games", 
-                    path == "games" ? id : path, 
-                    path == "games" ? data : id)
-        }
-
         static defineSchema() {
             var schema = new Schema()
 
@@ -82,13 +81,15 @@
                 { value: "stadia", label: "Stadia" }
             ]})
             schema.add("players", Players, { control: "none" })
-            schema.add("date", Date)
-            schema.add("startTime", moment, { timezone: "America/Los_Angeles", format: "hh:mma", control: "time" })
-            schema.add("endTime", moment, { timezone: "America/Los_Angeles", format: "hh:mma", control: "time" })
-            schema.add("description", String, { control: "text"})
+            schema.add("date", Date, { control: "date", format: "L", inline: { group: "datetime", label: "Date/Time" }})
+            schema.add("startTime", moment, { timezone: "America/Los_Angeles", format: "hh:mm a", control: "time", inline: { group: "datetime" }})
+            schema.add("endTime", moment, { timezone: "America/Los_Angeles", format: "hh:mm a", control: "time", inline: { group: "datetime" }})
+            schema.add("description", String, { control: "text" })
             schema.add("experience", Number, { default: 0, control: "none" })
+            schema.add("owner", String, { control: "none" })
 
             schema.setOption("useGlobalId", true)
+            schema.setOption("defaultPath", "games")
 
             return schema
         }
@@ -125,6 +126,7 @@
         }
 
         get displayStartTime() {
+            if (!this.startTime) return ""
             var tz = moment.tz.guess()
             return this.startTime.clone().tz(tz).format("LT")
         }
@@ -134,21 +136,23 @@
         }
 
         get isoStartTime() {
-            return moment(this.date.toDate()).toISOString()
+            return moment(this.date).toISOString()
         }
 
         get displayEndTime() {
+            if (!this.endTime) return ""
             var tz = moment.tz.guess()
             return this.endTime.clone().tz(tz).format("LT")
         }
 
         get displayDate() {
+            if (!this.date) return ""
             var tz = moment.tz.guess()
-            return moment(this.date.toDate()).tz(tz).format("ddd MM/DD")
+            return moment(this.date).tz(tz).format("ddd MM/DD")
         }
 
         get pstDate() {
-            return moment(this.date.toDate()).tz("America/Los_Angeles").format("ddd MM/DD")
+            return moment(this.date).tz("America/Los_Angeles").format("ddd MM/DD")
         }
 
         get displayTimeZone() {
@@ -185,6 +189,15 @@
 
         get hasAlternates() {
             return this.players.filter(player => player.isAlternate).length > 0
+        }
+
+        get isOwner() {
+            var user = firebase.auth().currentUser
+            
+            if (!user)
+                return false
+            
+            return this.owner == user.uid
         }
 
         getActivityLookup() {
@@ -262,6 +275,7 @@
             player.username = platform.username
             player.experience = activity.experience
             player.isAlternate = this.size >= this.maxSize
+            player.awards = profile.awards
             this.players.add(player)
 
             // Hang on to the profile so we can save it later
@@ -377,7 +391,7 @@
         }
 
         get googleCalendarUrl() {
-            var startTime = moment(this.date.toDate())
+            var startTime = moment(this.date)
             var endTime = startTime.clone().add(this.duration, 'hours')
 
             var startTime = startTime.toISOString().replace(/[\-\:]/g,'').replace(/\.\d\d\dZ/,'Z')
@@ -394,7 +408,7 @@
         }
 
         get outlookCalendarUrl() {
-            var startTime = moment(this.date.toDate())
+            var startTime = moment(this.date)
             var endTime = startTime.clone().add(this.duration, 'hours')
 
             var startTime = startTime.toISOString()
@@ -413,7 +427,7 @@
         }
 
         toIcsCalendar() {
-            var startTime = moment(this.date.toDate())
+            var startTime = moment(this.date)
             var endTime = startTime.clone().add(this.duration, 'hours')
 
             var startTime = startTime.toISOString().replace(/[\-\:]/g,'').replace(/\.\d\d\dZ/,'Z')
@@ -445,7 +459,7 @@
 
     class Games extends Collection {
         constructor(path) {
-            super("games")
+            super(path || "games")
         }
 
         static defineClass() {

@@ -23,10 +23,11 @@ class Bungie {
             Progress.report()
             let memberships = this.memberships
             let destinyMemberships = memberships.destinyMemberships
-            let username = memberships.bungieNetUser.displayname
+            let username = memberships.bungieNetUser.displayName
 
-            if (username)
+            if (username) {
                 profile.username = profile.username || username
+            }
             
             profile.bungiePrimaryMembershipId = memberships.primaryMembershipId
             profile.bungiePrimaryMembershipType = memberships.primaryMembershipType

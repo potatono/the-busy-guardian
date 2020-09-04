@@ -2,6 +2,8 @@
     var Schema = require("./schema").Schema
     var Model = require("./model").Model
     var Collection = require("./collection").Collection
+    var moment = require("moment-timezone").moment || require("moment-timezone")
+
 
     String.prototype.splitCamelCase = function() {
         var str = this.replace(/([a-z])([A-Z])/g, '$1 $2')
@@ -66,7 +68,7 @@
 
         bind() {            
             if (this.data && this.data instanceof Model) {
-                var binding = new ModelBinding(this.data, this.field.name, this.element)
+                var binding = new ModelBinding(this.data, this.field.name, this.element, this.field)
                 Bindings.add(binding)
 
                 // Move to model when properties are initially set
@@ -174,6 +176,8 @@
             var select = document.createElement("select")
 
             select.className = "form-control"
+            select.setAttribute("data-field", this.field.name)
+            
             var placeholder = this.field.options.placeholders && this.field.options.placeholders[idx]
             this.buildOptions(select, values, prefix, placeholder)
 
@@ -186,13 +190,18 @@
                 let n = idx+1
                 let val = values
                 let ph = this.field.options.placeholders && this.field.options.placeholders[n]
+                
+                select.change = function() { 
+                    var idx = select.selectedIndex
+                    if (select.options[0].value == "_placeholder_") idx -= 1
 
-                select.addEventListener("change", function() { 
-                    self.buildOptions(self.selects[n], val[this.selectedIndex].values, val[this.selectedIndex].value, ph)
-                })
+                    if (val[idx])
+                        self.buildOptions(self.selects[n], val[idx].values, val[idx].value, ph) 
+                }
+                select.addEventListener("change", select.change)
             }
             else { 
-                Bindings.add(new ModelBinding(this.view.data, this.field.name, select))
+                Bindings.add(new CompoundSelectBinding(this.view.data, this.field.name, select, this.field))
             }
 
             return select
@@ -401,11 +410,33 @@
                 container.className = "form-row"
             }
 
+            var inlineGroups = {}
             for (var field of this.schema.fields) {
+                
                 if (field.options.control == "none")
                     continue
+                
+                var fieldContainer = container
+                var buildOptions = {}
+                
+                if (field.options.inline) {
+                    fieldContainer = inlineGroups[field.options.inline.group]
+
+                    if (!fieldContainer) {
+                        fieldContainer = document.createElement('div')
+                        fieldContainer.className = "form-row inline-group"
+                        inlineGroups[field.options.inline.group] = fieldContainer
+
+                        var label = document.createElement('label')
+                        label.innerText = field.options.inline.label
+                        container.appendChild(label)
+                        container.appendChild(fieldContainer)
+                    }
                     
-                container.appendChild(this.buildField(field))
+                    buildOptions.inline = true
+                }
+                
+                fieldContainer.appendChild(this.buildField(field, buildOptions))
             }
 
             container.id = this.buildId()
@@ -433,9 +464,11 @@
             return element
         }
 
-        buildField(field) {
-            let div = document.createElement("div")
-            if (this.options.type == "inline") {
+        buildField(field, options) {
+            var div = document.createElement('div')
+            options = options || {}
+
+            if (options.inline || this.options.type == "inline") {
                 div.className = this.getColClassName(field)
             }
             else {
@@ -465,6 +498,10 @@
             else if (field.cls === String && field.options.control === "text") 
                 element = (new TextAreaViewControl(field, this)).build()
             else if (field.cls === String) 
+                element = (new InputViewControl(field, this)).build()
+            else if (field.cls === Date)
+                element = (new InputViewControl(field, this)).build()
+            else if (field.cls === moment)
                 element = (new InputViewControl(field, this)).build()
             else {
                 console.log("No match for", field)
@@ -522,16 +559,19 @@
             div.id = model.id
             div.innerHTML= this.template(model, { allowProtoPropertiesByDefault: true })
             this.container.appendChild(div)
+            return div
         }
 
         remove(model) {
             var div = document.getElementById(model.id)
             this.container.removeChild(div)
+            return div
         }
 
         update(model) {
             var div = document.getElementById(model.id)
             div.innerHTML = this.template(model, { allowProtoPropertiesByDefault: true })
+            return div
         }
     }
 
@@ -551,10 +591,11 @@
      * Binds an element to a model and field.  When the element changes it updates the model and vice-versa.
      */
     class ModelBinding {
-        constructor(model, name, element) {
+        constructor(model, name, element, field) {
             this.model = model
             this.name = name
             this.element = element
+            this.field = field
 
             if (model.isLoaded)
                 this.updateElement(model[name])
@@ -569,14 +610,86 @@
         }
 
         updateElement(value) {
-            if (typeof(value) != "undefined" && value != this.element.value) {
-                this.element.value = value
+            var newValue = this.serialize(value)
+
+            if (!this.updatingModel && 
+                this.element.value != newValue && 
+                typeof(newValue) != "undefined"
+            ) {
+                // console.log("Update element: " + this.name)
+
+                this.updatingElement = true
+                window.setTimeout(() => this.updatingElement = false, 100)
+
+                this.element.value = newValue
+
+                if (this.element.polyfill) {
+                    this.element.polyfill.update()
+                }
             }
         }
 
         updateModel(value) {
-            if (this.model[this.name] != value) {
-                this.model[this.name] = value
+            var newValue = this.deserialize(value)
+            
+            if (!this.updatingElement && 
+                this.model[this.name] != newValue &&
+                typeof(newValue) != "undefined"
+            ) {
+                // console.log("Update model: " + this.name)
+
+                this.updatingModel = true
+                window.setTimeout(() => this.updatingModel = false, 100)
+
+                this.model[this.name] = newValue
+            }
+        }
+
+        serialize(value) {
+            if ((this.field.cls == moment || this.field.cls == Date) && value) {
+                var fmt = this.element.type == "time" || this.element.polyfill ? "HH:mm" : "YYYY-MM-DD"
+
+                return moment(value).format(fmt)
+            }
+            else
+                return value
+        }
+
+        deserialize(value) {
+            var field = this.field
+            var data = this.model
+
+            if ((field.cls == moment || field.cls == Date) && value) {
+                var timezone = field.options.timezone || (field.options.timezoneField && data[field.options.timezoneField])
+                var format = field.options.format
+                var result
+
+                if (timezone && format)
+                    result = moment.tz(value, format, false, timezone)
+                else if (timezone)
+                    result = moment.tz(value, timezone)
+                else
+                    result = moment(value)
+                
+                return field.cls == moment ? result : result.toDate()
+            }
+            else {
+                return value
+            }
+        }
+    }
+
+    class CompoundSelectBinding extends ModelBinding {
+        updateElement(value) {
+            
+            var parts = value.split(':')
+            // TODO FIXME Find a cleaner way to do this.
+            var elements = $(this.element).parents('.form-row').find(`select[data-field=${this.name}`)
+
+            for (var i=0; i<elements.length; i++) {
+                var val = parts.slice(0, i+1).join(':')
+                elements[i].value = val
+                if (elements[i].change) elements[i].change()
             }
         }
     }

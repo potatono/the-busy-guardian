@@ -26,8 +26,7 @@ function createState(req, key) {
     if (/localhost/.test(req.headers['host'])) {
         hash = 'L' + hash
     }
-
-    functions.logger.debug(`ip=${ip} agent=${agent} key=${key} hash=${hash}`)
+    //functions.logger.debug(`ip=${ip} agent=${agent} key=${key} hash=${hash}`)
 
     return hash
 }
@@ -145,8 +144,7 @@ exports.auth = functions.https.onRequest((req, res) => {
 
     requestBungieToken(req).then((response) => {
         saveTokens(response.data).then(() => {
-            createFirebaseToken(response.data).then((token) => {
-                functions.logger.error(token)
+            createFirebaseToken(response.data).then(token => {
                 res.cookie("auth_token", token).redirect("/profile")
             })
             .catch((error) => {
@@ -341,8 +339,128 @@ exports.leaveGame = functions.https.onCall((data, context) => {
             return profile.save().then(() => true)
         }
         catch (err) {
-            throw new functions.https.HttpsError('unkonwn', err.message)
+            functions.logger.error("Caught error", err)
+
+            throw new functions.https.HttpsError('unknown', err.message)
         }
     })
 })
 
+exports.publishGame = functions.https.onCall((data, context) => {
+    let uid = context.auth.uid
+    let gid = data.gid
+
+    if (!uid)
+        throw new functions.https.HttpsError("permission-denied", "Please log in before creating a game")
+    
+    if (!gid)
+        throw new functions.https.HttpsError("invalid-argument", "No gid specified")
+
+    var profile = new Profile(uid)
+    var draft = new Game(gid, { path: `drafts/${uid}/games`})
+
+    functions.logger.debug("Loading draft and profile...")
+    return Promise.all([ draft.load(), profile.load() ]).then(() => {
+        functions.logger.debug("Creating copy..")
+        var newGame = new Game()
+        newGame.autoCommit = false
+        newGame.copy(draft)
+        newGame.owner = uid
+        var player = newGame.addPlayer(profile)
+        
+        functions.logger.debug("Saving player, game and deleting draft...")
+        return Promise.all([ player && player.save(), newGame.save(), draft.delete() ])
+            .then(_ => newGame.id)
+    })
+    .catch(err => {
+        functions.logger.error("Caught error", err)
+
+        throw new functions.https.HttpsError("unknown", err.message)
+    })
+})
+
+exports.unpublishGame = functions.https.onCall((data, context) => {
+    let uid = context.auth.uid
+    let gid = data.gid
+
+    if (!uid)
+        throw new functions.https.HttpsError("permission-denied", "Please log in before creating a game")
+    
+    if (!gid)
+        throw new functions.https.HttpsError("invalid-argument", "No gid specified")
+
+    var game = new Game(gid)
+
+    return game.load().then(() => {
+        if (game.owner != uid)
+            throw new functions.https.HttpsError("permission-denied", "You do not own this game")
+
+        var draft = new Game(gid, { path: `drafts/${uid}/games` })
+        draft.autoCommit = false
+        draft.copy(game)
+        
+        return Promise.all([ draft.save(), game.delete() ])
+            .then(_ => draft.id)
+    })
+    .catch(err => {
+        functions.logger.error("Caught error", err)
+
+        throw new functions.https.HttpsError("unknown", err.message)
+    })
+})
+
+exports.deleteGame = functions.https.onCall((data, context) => {
+    let uid = context.auth.uid
+    let gid = data.gid
+
+    if (!uid)
+        throw new functions.https.HttpsError("permission-denied", "Please log in before creating a game")
+
+    if (!gid)
+        throw new functions.https.HttpsError("invalid-argument", "No gid specified")
+
+    var game = new Game(gid)
+
+    return game.load().then(() => {
+        if (game.owner != uid)
+            throw new functions.https.HttpsError("permission-denied", "You do not own this game")
+    
+        return game.delete().then(_ => true)
+    })
+    .catch(err => {
+        functions.logger.error("Caught error", err)
+
+        throw new functions.https.HttpsError("unknown", err.message)
+    })
+})
+
+exports.deleteDraft = functions.https.onCall((data, context) => {
+    let uid = context.auth.uid
+    let gid = data.gid
+
+    if (!uid)
+        throw new functions.https.HttpsError("permission-denied", "Please log in before creating a game")
+
+    if (!gid)
+        throw new functions.https.HttpsError("invalid-argument", "No gid specified")
+
+    var game = new Game(gid, { path: `drafts/${uid}/games`})
+
+    return game.load().then(() => {
+        if (game.owner != uid)
+            throw new functions.https.HttpsError("permission-denied", "You do not own this game")
+    
+        return game.delete().then(_ => true)
+    })
+    .catch(err => {
+        functions.logger.error("Caught error", err)
+
+        throw new functions.https.HttpsError("unknown", err.message)
+    })
+})
+
+exports.createProfile = functions.firestore
+    .document('profiles/{userId}')
+    .onCreate((snap, context) => {
+        return snap.ref.set({ awards: [ 'Beta Tester' ] }, { merge: true })
+    });

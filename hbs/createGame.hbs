@@ -1,11 +1,13 @@
 <div id="game">
     <div class="container-md">
         <div class="alert alert-secondary">
-            Use the form below to set at least one platform, play window and activity.  Everything auto-saves.
+            You can create a game yourself if you don't want to wait for us to match you to one automatically.
+            Use the form below to set your platform, play window and activity.  Everything auto-saves.
         </div>
         <div id="game-form"></div>
         <div>
-            <button class="btn btn-danger">Publish</button>
+            <button class="btn btn-danger" onclick="controller.publishGame(this)">Publish</button>
+            <button class="btn btn-danger" onclick="controller.deleteDraft(this)">Delete</button>
         </div>
     </div>
 </div>

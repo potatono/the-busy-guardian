@@ -274,12 +274,17 @@
                 game.load() 
             }
             else {
+                // We don't want to save a new draft every time someone clicks create
+                // game, so we'll temporarily turn off autoCommit
+                game.autoCommit = false
                 game.owner = User.uid
+                game.autoCommit = true
             }
         }
 
-        publishGame(gid, element) {
+        publishGame(element) {
             element.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Publishing...'
+            var gid = this.game.id
 
             this.publishGameCallable({ gid: gid })
                 .then(result => {
@@ -296,11 +301,14 @@
                 })
         }
 
-        deleteDraft(gid, element) {
+        deleteDraft(element) {
             element.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...'
+            var gid = this.game.id
 
             this.deleteDraftCallable({ gid: gid })
-                .then(_ => $(`#${gid}`).fadeOut())
+                .then(_ => { 
+                    $(`#game`).fadeOut()
+                })
                 .catch(err => {
                     console.error(err)
                     $(element).popover({ content: err.message, position: 'auto' }).popover('show')
